@@ -3,7 +3,7 @@
 import pytest
 import numpy as np
 
-from games.tictactoe import TicTacToeBoard, eval_tictactoe
+from games.tictactoe import TicTacToeBoard, eval_tictactoe, minmax
 
 # from tictactoe import eval_tictactoe, TicTacToeBoard
 
@@ -60,5 +60,37 @@ def test_eval_tictactoe():
 
     for expected, board in tests:
         b.board = board
-        score = eval_tictactoe(b)
-    assert score == expected, "board: \n{}".format(b)
+        score, _ = eval_tictactoe(b)
+        assert score == expected, "board: \n{}".format(b)
+
+
+def test_minmax():
+    # depth = 0
+    b = TicTacToeBoard(turn="x")
+    b.board = np.array((("x", "x", "x"), (" ", " ", " "), (" ", " ", " ")))
+    score, _ = minmax(b, eval_tictactoe, "x", 0)
+    assert score == 1000
+
+    # depth = 1, offense
+    b.board = np.array((("x", " ", " "), (" ", "x", " "), (" ", " ", " ")))
+    score, move = minmax(b, eval_tictactoe, "x", 1)
+    assert score == 1000
+    assert move == (2, 2)
+
+    # depth = 2, defense
+    b.board = np.array((("o", " ", " "), (" ", "o", " "), (" ", " ", " ")))
+    score, move = minmax(b, eval_tictactoe, "x", 2)
+    assert score == 0
+    assert move == (2, 2)
+
+    # can stop a force win
+    b.board = np.array((("o", " ", " "), (" ", " ", " "), (" ", " ", " ")))
+    score, move = minmax(b, eval_tictactoe, "x", 6)
+    assert score == 0
+    assert move == (1, 1)
+
+    # can do a force win
+    b.board = np.array((("x", " ", " "), ("o", " ", " "), (" ", " ", " ")))
+    score, move = minmax(b, eval_tictactoe, "x", 6)
+    assert score == 1000
+    assert move == (0, 2) or move == (0, 1)  # there are many other force victories

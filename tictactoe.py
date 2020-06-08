@@ -58,6 +58,7 @@ def eval_tictactoe(board):
     "x" winning -> positive
     "o" winning -> negative.
     game over -> +/- 1000.
+    return (score, game_over)
     """
     size = len(board.board)
     win_score = 1000
@@ -66,22 +67,83 @@ def eval_tictactoe(board):
         # down or across
         for i in range(size):
             if np.all(board.board[i, :] == team) or np.all(board.board[:, i] == team):
-                return team_direction * win_score
+                return team_direction * win_score, True
 
         # diags
-        diag1 = np.array(list(board.board[i, i] for i in range(size)))
-        diag2 = np.array(list(board.board[i, size - i - 1] for i in range(size)))
+        diag1 = np.array([ board.board[i, i] for i in range(size) ])
+        diag2 = np.array([ board.board[i, size - i - 1] for i in range(size) ])
 
         if np.all(diag1 == team) or np.all(diag2 == team):
-            return team_direction * win_score
+            return team_direction * win_score, True
 
     # todo add more intermediate rewards to help test alpha beta pruning
-    return 0
+    return 0, False
 
 
-# if __name__ == "__main__":
-b = TicTacToeBoard()
-b.board[0, 0] = "x"
-b.board[1, 1] = "x"
-b.board[2, 2] = "x"
-eval_tictactoe(b)
+def minmax(board : TicTacToeBoard, eval_fn, current_player, max_depth):
+    """Finds the best move using the minmax algorithm.
+    board: board representation with this interface:
+        [...] = board.moves(player?)
+        board2 = board.update(move)
+    eval_fn: a function that transforms a board into a score
+        score = eval_fn(board, player?)
+    player?: how should I represent who the current player is?
+    max_depth: how many more layers to search.
+
+    returns: (score, move) the expected score down that path.
+    """
+
+    # base case
+    if max_depth == 0:
+        return eval_fn(board)[0], None
+
+    # someone won
+    # TODO: make it prefer victories that are sooner, or defeats that are later.
+    score, done = eval_fn(board)
+    if done:
+        return score, None
+
+    # ties
+    moves = board.moves()
+    if len(moves) == 0:
+        return eval_fn(board)[0], None
+
+    # loop!
+    best_move = None
+    if board.turn == current_player:  # max
+        best_score = -99999
+    else:
+        best_score = 99999
+
+    for move in moves:
+        b2 = board.do_move(move)
+        score, _ = minmax(b2, eval_fn, current_player, max_depth - 1)
+
+        if board.turn == current_player:  # max
+            best = score > best_score
+        else:  # min
+            best = score < best_score
+
+        if best:
+            best_score = score
+            best_move = move
+
+    return best_score, best_move
+
+
+
+if __name__ == "__main__":
+    b = TicTacToeBoard()
+    # b.board[0,0] = "x"
+    # b.board[1,1] = "x"
+    # score, move = minmax(b, eval_tictactoe, "x", 6)
+    # print(move)
+    while True:
+        print(b)
+        rc_str = input("row, column: ")
+        move = eval(rc_str)
+        b = b.do_move(move)
+
+        print(b)
+        score, move = minmax(b, eval_tictactoe, "x", 6)
+        b = b.do_move(move)
