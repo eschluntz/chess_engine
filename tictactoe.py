@@ -3,12 +3,13 @@
 import numpy as np
 import copy
 
+
 class TicTacToeBoard(object):
     TURNS = ["x", "o"]
 
     def __init__(self, turn="x"):
         # 3x3 array of chars. ["", "x", "o"]
-        self.board = np.full(shape=(3,3), fill_value=" ", dtype="<U1")
+        self.board = np.full(shape=(3, 3), fill_value=" ", dtype="<U1")
         self.turn = turn  # "x" or "o"
 
     def __str__(self):
@@ -51,19 +52,36 @@ class TicTacToeBoard(object):
         b.turn = self.next_turn()
         return b
 
+
 def eval_tictactoe(board):
     """Evaluates a tictactoe board.
     "x" winning -> positive
     "o" winning -> negative.
     game over -> +/- 1000.
     """
+    size = len(board.board)
+    win_score = 1000
+    for team, team_direction in [("x", 1), ("o", -1)]:
 
-    for i in range(len(board.board)):
-        for j in range(len(board.board)):  # NOTE: assumes square boards
+        # down or across
+        for i in range(size):
+            if np.all(board.board[i, :] == team) or np.all(board.board[:, i] == team):
+                return team_direction * win_score
+
+        # diags
+        diag1 = np.array(list(board.board[i, i] for i in range(size)))
+        diag2 = np.array(list(board.board[i, size - i - 1] for i in range(size)))
+
+        if np.all(diag1 == team) or np.all(diag2 == team):
+            return team_direction * win_score
+
+    # todo add more intermediate rewards to help test alpha beta pruning
+    return 0
 
 
-
-if __name__ == "__main__":
-    b = TicTacToeBoard()
-    b.board[0,0] = "x"
-    b.do_move((1,1))
+# if __name__ == "__main__":
+b = TicTacToeBoard()
+b.board[0, 0] = "x"
+b.board[1, 1] = "x"
+b.board[2, 2] = "x"
+eval_tictactoe(b)
