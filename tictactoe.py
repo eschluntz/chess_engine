@@ -12,6 +12,7 @@ class TicTacToeBoard(object):
     def __init__(self, turn="x"):
         # 3x3 array of chars. ["", "x", "o"]
         self.board = np.full(shape=(3, 3), fill_value=" ", dtype="<U1")
+        self.past_moves = []  # used to pop off and undo moves
         self.turn = turn  # "x" or "o"
 
     def __str__(self):
@@ -43,16 +44,19 @@ class TicTacToeBoard(object):
             return "x"
 
     def do_move(self, move):
-        """Creates a new game board object with the new move taken
+        """Updates the game board object with the new move taken
         and the next player's turn set.
-        move: (r, c) tuple of ints.
-        returns: TicTacToe object"""
+        move: (r, c) tuple of ints."""
 
-        b = copy.deepcopy(self)  # lol does this work?
-        assert b.board[move] == " ", "Invalid move!"
-        b.board[move] = self.turn
-        b.turn = self.next_turn()
-        return b
+        self.board[move] = self.turn
+        self.turn = self.next_turn()
+        self.past_moves.append(move)
+
+    def undo_move(self):
+        """Pops the last move off the stack"""
+        last_move = self.past_moves.pop()
+        self.board[last_move] = " "
+        self.turn = self.next_turn()
 
 
 def eval_tictactoe(board):
@@ -62,19 +66,19 @@ def eval_tictactoe(board):
     game over -> +/- 1000.
     return (score, game_over)
     """
-    size = len(board.board)
     for team, team_direction in [("x", 1), ("o", -1)]:
 
-        # down or across
-        for i in range(size):
-            if np.all(board.board[i, :] == team) or np.all(board.board[:, i] == team):
-                return team_direction * WIN_SCORE, True
+        # I'm not clever enough to come up wth this myself
+        # https://stackoverflow.com/questions/46802651/check-for-winner-in-tic-tac-toe-numpy-python
+        mask = board.board == team
+        win = (
+            mask.all(0).any() or  # columns
+            mask.all(1).any() or  # rows
+            np.diag(mask).all() or  # down right
+            np.diag(mask[:,::-1]).all()  # up right
+        )
 
-        # diags
-        diag1 = np.array([ board.board[i, i] for i in range(size) ])
-        diag2 = np.array([ board.board[i, size - i - 1] for i in range(size) ])
-
-        if np.all(diag1 == team) or np.all(diag2 == team):
+        if win:
             return team_direction * WIN_SCORE, True
 
     # check if it's a tie game
@@ -117,8 +121,9 @@ def minmax(board : TicTacToeBoard, eval_fn, max_depth, alpha=-np.inf, beta=np.in
     best_score = -np.inf * direction
 
     for move in board.moves():
-        b2 = board.do_move(move)
-        score, _ = minmax(b2, eval_fn, max_depth - 1, alpha, beta)
+        board.do_move(move)
+        score, _ = minmax(board, eval_fn, max_depth - 1, alpha, beta)
+        board.undo_move()
 
         if score * direction > best_score * direction:
             best_score = score
@@ -138,16 +143,13 @@ def minmax(board : TicTacToeBoard, eval_fn, max_depth, alpha=-np.inf, beta=np.in
 
 if __name__ == "__main__":
     b = TicTacToeBoard()
-    b.board[0,0] = "o"
-    # b.board[1,1] = "x"
     import time
-    for depth in range(0,15):
-        b = TicTacToeBoard()
-        b.board[0,0] = "o"
-        t0 = time.time()
-        score, move = minmax(b, eval_tictactoe, depth)
-        t1 = time.time()
-        print((depth, t1 - t0))
+    depth = 10
+    b = TicTacToeBoard()
+    t0 = time.time()
+    score, move = minmax(b, eval_tictactoe, depth)
+    t1 = time.time()
+    print((depth, t1 - t0))
     # print(move)
     # while True:
     #     print(b)

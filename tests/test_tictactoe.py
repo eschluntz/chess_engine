@@ -2,6 +2,7 @@
 
 import pytest
 import numpy as np
+import copy
 
 from games.tictactoe import TicTacToeBoard, eval_tictactoe, minmax, WIN_SCORE
 
@@ -39,11 +40,9 @@ def test_do_move():
     b.board[1, 1] = "o"
     b.board[2, 1] = "o"
 
-    b2 = b.do_move((2, 2))
-    assert b2.board[2, 2] == "x"
-    assert b.board[2, 2] == " "  # didn't change original board
-    assert b2.turn == "o"
-    assert b.turn == "x"  # didn't change original turn
+    b.do_move((2, 2))
+    assert b.board[2, 2] == "x"
+    assert b.turn == "o"
 
 
 def test_eval_tictactoe():
@@ -88,6 +87,7 @@ def test_minmax():
     assert move == (2, 2)
 
     # depth = 2, defense
+    b = TicTacToeBoard(turn="x")
     b.board = np.array((("o", " ", " "), (" ", "o", " "), (" ", " ", " ")))
     score, move = minmax(b, eval_tictactoe, 2)
     assert score == 0
@@ -102,8 +102,13 @@ def test_minmax_deep():
     assert move == (1, 1)
 
     # can do a force win
-    b.turn = "o"
-    b.board = np.array((("o", " ", " "), ("x", " ", " "), (" ", " ", " ")))
+    b = TicTacToeBoard(turn="o")
+    start = np.array((("o", " ", " "), ("x", " ", " "), (" ", " ", " ")))
+    b.board = copy.deepcopy(start)
     score, move = minmax(b, eval_tictactoe, 6)
     assert score == -WIN_SCORE
     assert move == (0, 2) or move == (0, 1)  # there are many other force victories
+
+    # check board is unchanged after call to eval
+    assert np.all(b.board == start)
+    assert b.past_moves == []
