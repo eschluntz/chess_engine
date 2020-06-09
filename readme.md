@@ -1,3 +1,7 @@
+[![Build Status](https://travis-ci.com/eschluntz/games.svg?branch=master)](https://travis-ci.com/eschluntz/games)
+
+[![codecov](https://codecov.io/gh/eschluntz/games/branch/master/graph/badge.svg)](https://codecov.io/gh/eschluntz/games)
+
 # Games!
 
 A repo of simple AIs to play various games.
