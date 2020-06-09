@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 
-import pytest
 import numpy as np
 import copy
-
-from games.tictactoe import TicTacToeBoard, eval_tictactoe, minmax, WIN_SCORE
-
-# from tictactoe import eval_tictactoe, TicTacToeBoard
-
+from games.tictactoe import TicTacToeBoard, eval_tictactoe, minmax, WIN_SCORE, play_game
+from games import tictactoe
 
 def test_display():
     b = TicTacToeBoard()
@@ -112,3 +108,7 @@ def test_minmax_deep():
     # check board is unchanged after call to eval
     assert np.all(b.board == start)
     assert b.past_moves == []
+
+def test_play_game():
+    tictactoe.input = lambda text : "0, 0"  # gross, but this is barely worth testing
+    assert play_game() == -WIN_SCORE

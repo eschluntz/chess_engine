@@ -86,19 +86,23 @@ def eval_tictactoe(board):
     return 0, tie_game
 
 
-def minmax(board : TicTacToeBoard, eval_fn, max_depth, alpha=-np.inf, beta=np.inf):
-    """Finds the best move using the minmax algorithm.
+def minmax(board, eval_fn, max_depth, alpha=-np.inf, beta=np.inf):
+    """Finds the best move using MinMax and AlphaBeta pruning.
+    Hopefully this function can be used across many different games!
+
     board: board representation with this interface:
-        [...] = board.moves(player?)
-        board2 = board.update(move)
+        [...] = board.moves()
+        board.do_move(move)
+        board.undo_move()
     eval_fn: a function that transforms a board into a score
-        score = eval_fn(board, player?)
+        score, over = eval_fn(board)
     max_depth: how many more layers to search.
     alpha:  worst possible score for "x" = -inf
     beta:   worst possible score for "o" = +inf
 
 
     TODO: make it prefer victories that are sooner, or defeats that are later.
+    TODO: sort possible moves by the eval_fn heuristic to improve pruning
 
     returns: (score, move) the expected score down that path.
     """
@@ -139,8 +143,8 @@ def minmax(board : TicTacToeBoard, eval_fn, max_depth, alpha=-np.inf, beta=np.in
     return best_score, best_move
 
 
-
-if __name__ == "__main__":
+def play_game():
+    """Play a friendly game of tic tac toe against the AI"""
     b = TicTacToeBoard()
     while True:
         rc_str = input("row, column: ")
@@ -151,9 +155,10 @@ if __name__ == "__main__":
         if over:
             if score == WIN_SCORE:
                 print("You win!")
+                return WIN_SCORE
             else:
                 print("Tie!")
-            break
+                return 0
 
         score, move = minmax(b, eval_tictactoe, 9)
         b.do_move(move)
@@ -162,6 +167,10 @@ if __name__ == "__main__":
         if over:
             if score == -WIN_SCORE:
                 print("You lose!")
+                return -WIN_SCORE
             else:
                 print("Tie!")
-            break
+                return 0
+
+if __name__ == "__main__":
+    play_game()
