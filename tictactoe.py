@@ -83,7 +83,7 @@ def eval_tictactoe(board):
     return 0, tie_game
 
 
-def minmax(board : TicTacToeBoard, eval_fn, max_depth):
+def minmax(board : TicTacToeBoard, eval_fn, max_depth, alpha=-np.inf, beta=np.inf):
     """Finds the best move using the minmax algorithm.
     board: board representation with this interface:
         [...] = board.moves(player?)
@@ -91,6 +91,8 @@ def minmax(board : TicTacToeBoard, eval_fn, max_depth):
     eval_fn: a function that transforms a board into a score
         score = eval_fn(board, player?)
     max_depth: how many more layers to search.
+    alpha:  worst possible score for "x" = -inf
+    beta:   worst possible score for "o" = +inf
 
 
     TODO: make it prefer victories that are sooner, or defeats that are later.
@@ -116,11 +118,19 @@ def minmax(board : TicTacToeBoard, eval_fn, max_depth):
 
     for move in board.moves():
         b2 = board.do_move(move)
-        score, _ = minmax(b2, eval_fn, max_depth - 1)
+        score, _ = minmax(b2, eval_fn, max_depth - 1, alpha, beta)
 
         if score * direction > best_score * direction:
             best_score = score
             best_move = move
+
+        # update heuristics
+        if direction > 0:
+            alpha = max(alpha, score)  # only if max
+        else:
+            beta = min(beta, score)  # only if min
+        if beta <= alpha:  # we know the parent won't choose us. abandon the search!
+            break
 
     return best_score, best_move
 
@@ -131,7 +141,7 @@ if __name__ == "__main__":
     b.board[0,0] = "o"
     # b.board[1,1] = "x"
     import time
-    for depth in range(11,15):
+    for depth in range(0,15):
         b = TicTacToeBoard()
         b.board[0,0] = "o"
         t0 = time.time()
