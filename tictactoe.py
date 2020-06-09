@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import numpy as np
-import copy
 
 WIN_SCORE = 1000
 
@@ -143,20 +142,26 @@ def minmax(board : TicTacToeBoard, eval_fn, max_depth, alpha=-np.inf, beta=np.in
 
 if __name__ == "__main__":
     b = TicTacToeBoard()
-    import time
-    depth = 10
-    b = TicTacToeBoard()
-    t0 = time.time()
-    score, move = minmax(b, eval_tictactoe, depth)
-    t1 = time.time()
-    print((depth, t1 - t0))
-    # print(move)
-    # while True:
-    #     print(b)
-    #     rc_str = input("row, column: ")
-    #     move = eval(rc_str)
-    #     b = b.do_move(move)
+    while True:
+        rc_str = input("row, column: ")
+        move = eval(rc_str)  # careful with your input :p
+        b.do_move(move)
+        print(b)
+        score, over = eval_tictactoe(b)
+        if over:
+            if score == WIN_SCORE:
+                print("You win!")
+            else:
+                print("Tie!")
+            break
 
-    #     print(b)
-    #     score, move = minmax(b, eval_tictactoe, 6)
-    #     b = b.do_move(move)
+        score, move = minmax(b, eval_tictactoe, 9)
+        b.do_move(move)
+        print(b)
+        score, over = eval_tictactoe(b)
+        if over:
+            if score == -WIN_SCORE:
+                print("You lose!")
+            else:
+                print("Tie!")
+            break
