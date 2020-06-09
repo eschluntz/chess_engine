@@ -3,7 +3,7 @@
 import pytest
 import numpy as np
 
-from games.tictactoe import TicTacToeBoard, eval_tictactoe, minmax
+from games.tictactoe import TicTacToeBoard, eval_tictactoe, minmax, WIN_SCORE
 
 # from tictactoe import eval_tictactoe, TicTacToeBoard
 
@@ -49,48 +49,61 @@ def test_do_move():
 def test_eval_tictactoe():
     b = TicTacToeBoard()
 
-    tests = []  # [(score, board), ...]
-    tests.append((0, np.array(((" ", " ", " "), (" ", " ", " "), (" ", " ", " ")))))
-    tests.append((0, np.array((("x", "x", "o"), ("x", "o", "o"), (" ", "x", "x")))))
-    tests.append((1000, np.array((("x", "x", "x"), (" ", " ", " "), (" ", " ", " ")))))
-    tests.append((-1000, np.array(((" ", " ", " "), ("o", "o", "o"), (" ", " ", " ")))))
-    tests.append((1000, np.array((("o", "x", " "), (" ", "x", "o"), (" ", "x", "o")))))
-    tests.append((-1000, np.array((("o", " ", " "), (" ", "o", " "), (" ", " ", "o")))))
-    tests.append((-1000, np.array(((" ", " ", "o"), (" ", "o", "x"), ("o", " ", " ")))))
+    # [(score, done, board), ...]
+    tests = [
+        (0,             False,  np.array(((" ", " ", " "), (" ", " ", " "), (" ", " ", " ")))),
+        (WIN_SCORE,     True,   np.array((("x", "x", "x"), (" ", " ", " "), (" ", " ", " ")))),
+        (-WIN_SCORE,    True,   np.array(((" ", " ", " "), ("o", "o", "o"), (" ", " ", " ")))),
+        (WIN_SCORE,     True,   np.array((("o", "x", " "), (" ", "x", "o"), (" ", "x", "o")))),
+        (-WIN_SCORE,    True,   np.array((("o", " ", " "), (" ", "o", " "), (" ", " ", "o")))),
+        (-WIN_SCORE,    True,   np.array(((" ", " ", "o"), (" ", "o", "x"), ("o", " ", " ")))),
+        (0,             True,   np.array((("o", "x", "x"), ("x", "o", "o"), ("x", "o", "x")))),
+    ]
 
-    for expected, board in tests:
+    for e_score, e_done, board in tests:
         b.board = board
-        score, _ = eval_tictactoe(b)
-        assert score == expected, "board: \n{}".format(b)
+        score, done = eval_tictactoe(b)
+        assert score == e_score, "board: \n{}".format(b)
+        assert done == e_done, "board: \n{}".format(b)
 
 
 def test_minmax():
     # depth = 0
     b = TicTacToeBoard(turn="x")
     b.board = np.array((("x", "x", "x"), (" ", " ", " "), (" ", " ", " ")))
-    score, _ = minmax(b, eval_tictactoe, "x", 0)
-    assert score == 1000
+    score, _ = minmax(b, eval_tictactoe, 0)
+    assert score == WIN_SCORE
+
+    b = TicTacToeBoard(turn="o")
+    b.board = np.array((("o", " ", " "), (" ", "o", " "), (" ", " ", " ")))
+    score, move = minmax(b, eval_tictactoe, 1)
+    assert score == -WIN_SCORE
+    assert move == (2,2)
 
     # depth = 1, offense
+    b = TicTacToeBoard(turn="x")
     b.board = np.array((("x", " ", " "), (" ", "x", " "), (" ", " ", " ")))
-    score, move = minmax(b, eval_tictactoe, "x", 1)
-    assert score == 1000
+    score, move = minmax(b, eval_tictactoe, 1)
+    assert score == WIN_SCORE
     assert move == (2, 2)
 
     # depth = 2, defense
     b.board = np.array((("o", " ", " "), (" ", "o", " "), (" ", " ", " ")))
-    score, move = minmax(b, eval_tictactoe, "x", 2)
+    score, move = minmax(b, eval_tictactoe, 2)
     assert score == 0
     assert move == (2, 2)
 
+def test_minmax_deep():
+    b = TicTacToeBoard(turn="x")
     # can stop a force win
     b.board = np.array((("o", " ", " "), (" ", " ", " "), (" ", " ", " ")))
-    score, move = minmax(b, eval_tictactoe, "x", 6)
+    score, move = minmax(b, eval_tictactoe, 6)
     assert score == 0
     assert move == (1, 1)
 
     # can do a force win
-    b.board = np.array((("x", " ", " "), ("o", " ", " "), (" ", " ", " ")))
-    score, move = minmax(b, eval_tictactoe, "x", 6)
-    assert score == 1000
+    b.turn = "o"
+    b.board = np.array((("o", " ", " "), ("x", " ", " "), (" ", " ", " ")))
+    score, move = minmax(b, eval_tictactoe, 6)
+    assert score == -WIN_SCORE
     assert move == (0, 2) or move == (0, 1)  # there are many other force victories

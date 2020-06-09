@@ -3,6 +3,8 @@
 import numpy as np
 import copy
 
+WIN_SCORE = 1000
+
 
 class TicTacToeBoard(object):
     TURNS = ["x", "o"]
@@ -61,70 +63,62 @@ def eval_tictactoe(board):
     return (score, game_over)
     """
     size = len(board.board)
-    win_score = 1000
     for team, team_direction in [("x", 1), ("o", -1)]:
 
         # down or across
         for i in range(size):
             if np.all(board.board[i, :] == team) or np.all(board.board[:, i] == team):
-                return team_direction * win_score, True
+                return team_direction * WIN_SCORE, True
 
         # diags
         diag1 = np.array([ board.board[i, i] for i in range(size) ])
         diag2 = np.array([ board.board[i, size - i - 1] for i in range(size) ])
 
         if np.all(diag1 == team) or np.all(diag2 == team):
-            return team_direction * win_score, True
+            return team_direction * WIN_SCORE, True
 
-    # todo add more intermediate rewards to help test alpha beta pruning
-    return 0, False
+    # check if it's a tie game
+    open_positions = np.sum(board.board == " ")
+    tie_game = open_positions == 0
+    return 0, tie_game
 
 
-def minmax(board : TicTacToeBoard, eval_fn, current_player, max_depth):
+def minmax(board : TicTacToeBoard, eval_fn, max_depth):
     """Finds the best move using the minmax algorithm.
     board: board representation with this interface:
         [...] = board.moves(player?)
         board2 = board.update(move)
     eval_fn: a function that transforms a board into a score
         score = eval_fn(board, player?)
-    player?: how should I represent who the current player is?
     max_depth: how many more layers to search.
+
+
+    TODO: make it prefer victories that are sooner, or defeats that are later.
 
     returns: (score, move) the expected score down that path.
     """
 
-    # base case
+    # base case - hit max depth
     if max_depth == 0:
         return eval_fn(board)[0], None
 
-    # someone won
-    # TODO: make it prefer victories that are sooner, or defeats that are later.
+    # base case - game over
     score, done = eval_fn(board)
     if done:
         return score, None
 
-    # ties
-    moves = board.moves()
-    if len(moves) == 0:
-        return eval_fn(board)[0], None
+    # are we maxing or mining?
+    direction = 1.0 if board.turn == "x" else -1.0
 
     # loop!
     best_move = None
-    if board.turn == current_player:  # max
-        best_score = -99999
-    else:
-        best_score = 99999
+    best_score = -np.inf * direction
 
-    for move in moves:
+    for move in board.moves():
         b2 = board.do_move(move)
-        score, _ = minmax(b2, eval_fn, current_player, max_depth - 1)
+        score, _ = minmax(b2, eval_fn, max_depth - 1)
 
-        if board.turn == current_player:  # max
-            best = score > best_score
-        else:  # min
-            best = score < best_score
-
-        if best:
+        if score * direction > best_score * direction:
             best_score = score
             best_move = move
 
@@ -134,16 +128,23 @@ def minmax(board : TicTacToeBoard, eval_fn, current_player, max_depth):
 
 if __name__ == "__main__":
     b = TicTacToeBoard()
-    # b.board[0,0] = "x"
+    b.board[0,0] = "o"
     # b.board[1,1] = "x"
-    # score, move = minmax(b, eval_tictactoe, "x", 6)
+    import time
+    for depth in range(11,15):
+        b = TicTacToeBoard()
+        b.board[0,0] = "o"
+        t0 = time.time()
+        score, move = minmax(b, eval_tictactoe, depth)
+        t1 = time.time()
+        print((depth, t1 - t0))
     # print(move)
-    while True:
-        print(b)
-        rc_str = input("row, column: ")
-        move = eval(rc_str)
-        b = b.do_move(move)
+    # while True:
+    #     print(b)
+    #     rc_str = input("row, column: ")
+    #     move = eval(rc_str)
+    #     b = b.do_move(move)
 
-        print(b)
-        score, move = minmax(b, eval_tictactoe, "x", 6)
-        b = b.do_move(move)
+    #     print(b)
+    #     score, move = minmax(b, eval_tictactoe, 6)
+    #     b = b.do_move(move)
