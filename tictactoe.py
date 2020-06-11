@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import time
+
 import numpy as np
 
 WIN_SCORE = 1000
@@ -25,7 +27,7 @@ class TicTacToeBoard(object):
             else:
                 prefix, postfix = "", ""
 
-            row = prefix + "|".join(row) + postfix + "\n"
+            row = " " + prefix + "|".join(row) + postfix + "\n"
             output += row
         return output
 
@@ -171,6 +173,17 @@ def play_game():
             else:
                 print("Tie!")
                 return 0
+
+def time_game():
+    """Generate a list of execution times for different search depths"""
+    for depth in range(15):
+        b = TicTacToeBoard()
+        b.board[0,0] = "o"
+
+        t0 = time.time()
+        minmax(b, eval_tictactoe, depth)
+        t1 = time.time()
+        print((depth, t1 - t0))
 
 if __name__ == "__main__":
     play_game()

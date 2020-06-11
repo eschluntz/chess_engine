@@ -8,6 +8,7 @@ A repo of simple AIs to play various games, and a testing ground for various tes
 
 # Tic-tac-toe
 
+
 Proving problem before tackling chess, with very similar requirements:
 
 1. Board state representation
@@ -17,6 +18,8 @@ Proving problem before tackling chess, with very similar requirements:
 Given a board object that can enumerate possible next moves, the search algorithm goes down the tree looking alternatively at what our best move is, and what an opponent's best move is. If we reach a recursion depth limit, we use the board evaluation function as a heuristic to just that end point.
 
 ### Board Design
+
+![board](https://github.com/eschluntz/games/blob/master/display.png?raw=true)
 
 The underlying data representation was pretty straight forward - a 2D numpy grid of chars.
 
@@ -33,7 +36,7 @@ Ideally I'll be able to use the same search function for both tic tac toe, chess
 2. Alpha-Beta pruning: Because of how min-max works, we can establish upper and lower bounds of our other options, and quit exploring a branch of the tree early if we know that it won't be chosen. It's pretty incredible how much of a speedup alpha-beta gave me!
 3. TODO: move ordering: exploring moves from best to worst makes alpha beta pruning WAY more effective. For chess I should explore using extra calls to the evaluation function to sort the moves, and then go down them. (or maybe even some sort of shallower tree search first, to order the options.)
 
-![times](.time_graph.png)
+![times](https://github.com/eschluntz/games/blob/master/time_graph.png?raw=true)
 
 
 
