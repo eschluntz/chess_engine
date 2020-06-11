@@ -38,8 +38,6 @@ Ideally I'll be able to use the same search function for both tic tac toe, chess
 
 ![times](https://github.com/eschluntz/games/blob/master/time_graph.png?raw=true)
 
-
-
 ### Board Evaluation Function
 
 For tic tac toe, a board evaluation function is kind of silly - it's easy enough to just search all the way to the leaf nodes of the tree. Nevertheless, to keep my API the same between chess and tic tac toe, I use an evaluation function that just returns `-1000, 0, or 1000` depending on whether the game is won, lost, or neither.
@@ -49,6 +47,16 @@ There was some cool Numpy vectorization to make the evaluation function really f
 
 # Chess
 
-### Board Representation and Move Representation
+### Board Representation
 
 I want to stick as close as I can to tic-tac-toe: a 2D numpy grid. I've seen some representations online use different letters, and then capital / lowercase to denote team.
+
+Beyond storing the data, the board object will need to:
+
+1. iterate over possible moves
+  a. jumping pieces
+  b. sliding pieces
+  c. TODO: special moves like castling, en passant, and promoting pawns
+     NOTE: I just realized that castling and en passant require more information than the current state of the board!
+2. do a move
+3. undo a move, and thus remember past board states
