@@ -27,7 +27,7 @@ class TicTacToeBoard(object):
             else:
                 prefix, postfix = "", ""
 
-            row = " " + prefix + "|".join(row) + postfix + "\n"
+            row = prefix + "|".join(row) + postfix + "\n"
             output += row
         return output
 
