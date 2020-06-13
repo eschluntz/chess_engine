@@ -64,14 +64,9 @@ class ChessBoard(object):
         even if some are illegal (i.e. or ontop of other pieces, or would put us in check)
         Returns [(r,c),...]. """
 
-        # view all pieces are now from their player's point of view
-        # TODO move into pawn branch, only assymetric piece
-        rotated = False
-        if piece.islower():  # black piece, look from their perspective
-            rotated = True
-            r, c = self.rotate_coords(r, c)
-        else:
-            piece = piece.lower()
+        # handle assymetric pieces (pawns)
+        should_flip = piece.islower()
+        piece = piece.lower()
 
         # define these so they're reusable for the queen moves
         def get_rook_moves(r, c):
@@ -83,10 +78,16 @@ class ChessBoard(object):
             return [ (r + dr, c + dc) for dr, dc in rel_moves ]
 
         if piece == "p":  # TODO does not handle en passant
+            if should_flip:  # pawns are only assymetric piece
+                r, c = 7 - r, 7 - c
+
             if r == 6:  # double move forward
                 moves = [(r - 1, c), (r - 2, c)]
             else:
                 moves = [(r - 1, c)]
+
+            if should_flip:  # unflip
+                moves = [ (7 - rm, 7 - cm) for rm, cm in moves ]
 
         elif piece == "r":  # careful to avoid out noop moves
             moves = get_rook_moves(r, c)
@@ -107,9 +108,6 @@ class ChessBoard(object):
 
         else:
             raise ValueError("Unknown piece! {}".format(piece))
-
-        if rotated:  # put back into board frame
-            moves = [ self.rotate_coords(r, c) for r, c in moves ]
 
         # filter off board moves
         final_moves = []
@@ -143,6 +141,3 @@ class ChessBoard(object):
         for row in self.board:
             out += (" ".join(row) + "\n")
         return out
-
-b = ChessBoard()
-print(b)

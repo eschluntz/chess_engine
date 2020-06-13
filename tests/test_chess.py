@@ -12,12 +12,6 @@ def test_setup_and_print():
     'P P P P P P P P\nR N B Q K B N R\n')
     assert out == expected
 
-def test_rotate_coords():
-    b = ChessBoard()
-
-    assert b.rotate_coords(0,0) == (7,7)
-    assert b.rotate_coords(0,7) == (7,0)
-
 def test_get_pawn_moves():
     b = ChessBoard()
 
@@ -212,3 +206,5 @@ def test_get_queen_moves():
             moves = b.get_possible_moves(p, r, c)
             moves_board = b.moves_to_array(moves)
             assert np.all(moves_board == expected)
+
+test_get_pawn_moves()
