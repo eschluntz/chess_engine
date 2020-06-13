@@ -65,6 +65,7 @@ class ChessBoard(object):
         Returns [(r,c),...]. """
 
         # view all pieces are now from their player's point of view
+        # TODO move into pawn branch, only assymetric piece
         rotated = False
         if piece.islower():  # black piece, look from their perspective
             rotated = True
@@ -78,7 +79,8 @@ class ChessBoard(object):
 
         def get_bishop_moves(r, c):
             rel_move_sublists = [[(di, di), (di, -di), (-di, di), (-di, -di)] for di in range(1, SIZE + 1)]
-            return sum(rel_move_sublists, [])
+            rel_moves = sum(rel_move_sublists, [])
+            return [ (r + dr, c + dc) for dr, dc in rel_moves ]
 
         if piece == "p":  # TODO does not handle en passant
             if r == 6:  # double move forward
@@ -116,6 +118,13 @@ class ChessBoard(object):
                 final_moves.append((r, c))
 
         return final_moves
+
+    def moves_to_array(self, moves : List[Tuple[int,int]]) -> np.array:
+        """For visualization purposes, draw all locations of moves onto a board"""
+        board = np.full(shape=(SIZE, SIZE), fill_value=0)
+        for r, c in moves:
+            board[r, c] = 1
+        return board
 
     def moves(self):
         """returns a list of all possible moves given the current board state and turn"""
