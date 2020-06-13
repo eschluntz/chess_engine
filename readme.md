@@ -51,6 +51,10 @@ There was some cool Numpy vectorization to make the evaluation function really f
 
 I want to stick as close as I can to tic-tac-toe: a 2D numpy grid. I've seen some representations online use different letters, and then capital / lowercase to denote team.
 
+It looks like there are also representations that that are "piece centric" rather than "square centric". I'm going to stick with board centric for now becuase it's more intuitive to me, but I can see that a piece centric model might be easier to iterate over.
+
+It also looks like for high perforamnce there are things called "bitfields"
+
 Beyond storing the data, the board object will need to:
 
 1. iterate over possible moves
@@ -60,3 +64,22 @@ Beyond storing the data, the board object will need to:
      NOTE: I just realized that castling and en passant require more information than the current state of the board!
 2. do a move
 3. undo a move, and thus remember past board states
+
+I will use (0,0) as the top left corner of the board, even chess indexes "1" as the bottom of the board. I think this will be cleaner for internal representation, and I can create an interface for UI to transform "rank and file" to "row and column".
+
+### Move Representation
+
+I'll store moves as ((from_r, from_c), (to_r, to_c)).
+For storing move history, I'll also need to store any captured pice, so that moves can be undone.
+history = [(move, captured_piece), ...]
+
+At some point I'll probably need to be able to export or import to a common chess notation like PGN or Algebraic Notation.
+
+### Move Generation
+
+The best way I can think to do this is:
+
+1. search through the board
+2. for each piece I find, iterate through it's possible moves
+3. if that move is legal (i.e. on board, doesn't land on our own piece), add it to my move list
+4. order the moves in some better way?
