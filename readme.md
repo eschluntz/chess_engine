@@ -79,7 +79,9 @@ At some point I'll probably need to be able to export or import to a common ches
 
 The best way I can think to do this is:
 
-1. search through the board
-2. for each piece I find, iterate through it's possible moves
-3. if that move is legal (i.e. on board, doesn't land on our own piece), add it to my move list
+1. search through the board to each of my pieces
+2. ~~iterate through it's possible moves ~~
+3. ~~if that move is legal (i.e. on board, doesn't land on our own piece), add it to my move list~~
 4. order the moves in some better way?
+
+Upon further thought, it will probably be easiest to generate possible moves at the same time as testing legality - especially for "sliding" pieces, that must stop at the first thing they hit.

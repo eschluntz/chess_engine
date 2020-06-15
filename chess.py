@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import time
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Sequence
 
 import numpy as np
 
@@ -13,11 +13,15 @@ class ChessBoard(object):
     TURNS = ["white", "black"]
 
     def __init__(self):
-        self.board = self.board = np.full(shape=(SIZE, SIZE), fill_value=".", dtype="<U1")
+        self.board = np.full(shape=(SIZE, SIZE), fill_value=".", dtype="<U1")
         self.past_moves = []
         self.turn = "white"
         # TODO: store info to assess whether castling is still allowed, and en passant is still allowed
         self.set_pieces()
+
+    def clear_pieces(self):
+        """Remove all pieces from the board"""
+        self.board = np.full(shape=(SIZE, SIZE), fill_value=".", dtype="<U1")
 
     def set_pieces(self):
         """Places all the pieces on the board.
@@ -38,7 +42,7 @@ class ChessBoard(object):
         self.board[6] = np.array([p.upper() for p in front_row])
         self.board[7] = np.array([p.upper() for p in back_row])
 
-    def find_my_pieces(self):
+    def find_my_pieces(self) -> Sequence[Tuple[str, int, int]]:
         """Returns a list of all the current player's pieces and their locations.
         [(piece, row, column),]"""
         pieces = []
@@ -55,84 +59,120 @@ class ChessBoard(object):
 
         return pieces
 
-    def rotate_coords(self, r : int, c : int) -> Tuple[int, int]:
-        """Flips coordinates into the other player's point of view"""
-        return (7 - r, 7 - c)
-
-    def get_possible_moves(self, piece : str, r : int, c : int) -> List[Tuple[int, int]]:
-        """Given a particular piece, generates all possible on board moves for it,
-        even if some are illegal (i.e. or ontop of other pieces, or would put us in check)
+    def get_possible_moves(self, r : int, c : int, piece=None) -> Sequence[Tuple[int, int]]:
+        """Given a particular piece, generates all possible on board moves for it.
+        piece: optional param to override piece at board location
+        TODO: filter moves that would put us in check.
         Returns [(r,c),...]. """
 
-        # handle assymetric pieces (pawns)
-        should_flip = piece.islower()
-        piece = piece.lower()
+        if piece is None:
+            piece : str = self.board[r, c]
+        if piece.islower():
+            my_piece = str.islower
+            other_piece = str.isupper
+        else:
+            my_piece = str.isupper
+            other_piece = str.islower
 
-        # define these so they're reusable for the queen moves
-        def get_rook_moves(r, c):
-            return [ (r, i) for i in range(SIZE) if i != c ] + [ (i, c) for i in range(SIZE) if i != r]
+        def inbound(r, c):
+            """Checks if coords are in the board"""
+            return 0 <= r <= 7 and 0 <= c <= 7
 
-        def get_bishop_moves(r, c):
-            rel_move_sublists = [[(di, di), (di, -di), (-di, di), (-di, -di)] for di in range(1, SIZE + 1)]
-            rel_moves = sum(rel_move_sublists, [])
-            return [ (r + dr, c + dc) for dr, dc in rel_moves ]
+        def get_sliding_moves(steps : Sequence[Tuple[int, int]], max_steps=SIZE) -> Sequence[Tuple[int, int]]:
+            """Expand a list of "step" directions into a list of possible moves for the piece"""
+            moves = []
+            for dr, dc in steps:
+                for i in range(1, max_steps + 1):
+                    r2, c2 = r + i * dr, c + i * dc  # slide along step direction
+                    if not inbound(r2, c2):
+                        break
+                    elif my_piece(self.board[r2, c2]):
+                        break
+                    elif other_piece(self.board[r2, c2]):
+                        moves.append((r2, c2))
+                        break
+                    else:  # empty square, don't break the search
+                        moves.append((r2, c2))
+            return moves
 
-        if piece == "p":  # TODO does not handle en passant
-            if should_flip:  # pawns are only assymetric piece
-                r, c = 7 - r, 7 - c
+        def get_jumping_moves(jumps : Sequence[Tuple[int, int]]) -> Sequence[Tuple[int, int]]:
+            """Filter a list of jumping moves and return the valid ones"""
+            moves = []
+            print("-----------------------")
+            print(self.board)
+            for dr, dc in jumps:
+                r2, c2 = r + dr, c + dc
+                print("looking at: {}".format((r2, c2)))
+                if inbound(r2, c2):
+                    print("inbound")
+                    print("contents: {}".format(self.board[r2, c2]))
+                    if not my_piece(self.board[r2, c2]):
+                        moves.append((r2, c2))
+                        print("added!")
+            return moves
 
-            if r == 6:  # double move forward
-                moves = [(r - 1, c), (r - 2, c)]
-            else:
-                moves = [(r - 1, c)]
+        # piece movements
+        knight_jumps = [(1, 2), (1, -2), (2, 1), (2, -1), (-1, 2), (-1, -2), (-2, 1), (-2, -1)]
+        king_jumps = [(1,1), (1,0), (1,-1), (0,1), (0,-1), (-1,1), (-1,0), (-1,-1)]
+        rook_steps = [(1,0), (0,1), (-1,0), (0,-1)]
+        bishop_steps = [(1,1), (1,-1), (-1,1), (-1,-1)]
+        queen_steps = rook_steps + bishop_steps
 
-            if should_flip:  # unflip
-                moves = [ (7 - rm, 7 - cm) for rm, cm in moves ]
-
-        elif piece == "r":  # careful to avoid out noop moves
-            moves = get_rook_moves(r, c)
-
-        elif piece == "n":
-            rel_moves = [(1, 2), (1, -2), (2, 1), (2, -1), (-1, 2), (-1, -2), (-2, 1), (-2, -1)]
-            moves = [ (r + dr, c + dc) for dr, dc in rel_moves ]
-
-        elif piece == 'b': # careful to filter out noop moves
-            moves = get_bishop_moves(r, c)
-
-        elif piece == 'q':
-            moves = get_bishop_moves(r, c) + get_rook_moves(r, c)
-
-        elif piece == 'k':  # TODO does not handle castling
-            rel_moves = [(1,1), (1,0), (1,-1), (0,1), (0,-1), (-1,1), (-1,0), (-1,-1)]
-            moves = [ (r + dr, c + dc) for dr, dc in rel_moves ]
-
+        piece_type = piece.lower()
+        if piece_type == "p":
+            # pawns are both asymmetric, and moves depend on their position D:
+            if piece.isupper():  # white
+                pawn_steps = [(-1, 0)]
+                max_steps = 2 if r == 6 else 1  # double jump from starting row
+            else:  # black
+                pawn_steps = [(1, 0)]
+                max_steps = 2 if r == 1 else 1  # double jump from starting row
+            moves = get_sliding_moves(pawn_steps, max_steps)
+        elif piece_type == "r":
+            moves = get_sliding_moves(rook_steps)
+        elif piece_type == "n":
+            moves = get_jumping_moves(knight_jumps)
+        elif piece_type == 'b':
+            moves = get_sliding_moves(bishop_steps)
+        elif piece_type == 'q':
+            moves = get_sliding_moves(queen_steps)
+        elif piece_type == "k":
+            moves = get_jumping_moves(king_jumps)
         else:
             raise ValueError("Unknown piece! {}".format(piece))
 
-        # filter off board moves
-        final_moves = []
-        for r, c in moves:
-            if 0 <= r <= 7 and 0 <= c <= 7:
-                final_moves.append((r, c))
+        return moves
 
-        return final_moves
+    def filter_legal_moves(self, piece: str, moves : Sequence[Tuple[int,int]]):
+        """Filters a list of moves to only include legal ones.
+        1. is not blocked by any other pieces
+        2. piece does not land on any of our other pieces.
+        3. TODO: does not put us in check
+        """
 
-    def moves_to_array(self, moves : List[Tuple[int,int]]) -> np.array:
+    def moves_to_array(self, moves : Sequence[Tuple[int,int]]) -> np.array:
         """For visualization purposes, draw all locations of moves onto a board"""
         board = np.full(shape=(SIZE, SIZE), fill_value=0)
         for r, c in moves:
             board[r, c] = 1
         return board
 
-    def moves(self):
-        """returns a list of all possible moves given the current board state and turn"""
+    # def moves(self):
+    #     """returns a list of all possible moves given the current board state and turn"""
 
-        # 1 find all my pieces. TODO: better to just maintain this as a second datastore?
-        pieces = self.find_my_pieces()
+    #     # 1 find all my pieces. TODO: better to just maintain this as a second datastore?
+    #     pieces = self.find_my_pieces()
 
-        # generate possible moves
-        for row, column, piece in pieces:
-            possible_moves = self.get_possible_moves(piece, row, column)
+    #     # generate possible moves
+    #     for piece, row, column in pieces:
+    #         pos_moves = self.get_possible_moves(piece, row, column)
+
+    #         def allowed(r, c):
+    #             if self.turn == "white":
+    #                 return not self.board[r, c].isupper()  # can go anywhere except on our own pieces
+    #             else:
+
+    #         moves = [ (r, c) for r,c in pos_moves if self.board[r,c] ]
 
 
     def __str__(self):
