@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
+from typing import Set
 import numpy as np
 import copy
-from games.chess import ChessBoard
+from games.chess import ChessBoard, SIZE
 
 def test_setup_and_print():
     b = ChessBoard()
@@ -23,6 +24,124 @@ def test_empty_pawn_moves():
         # flipped
         assert {(2,c), (3,c)} == set(b.get_possible_moves(1, c, piece="p"))
         assert {(4,c)} == set(b.get_possible_moves(3, c, piece="p"))
+
+
+def test_starting_moves():
+    b = ChessBoard()
+
+    # test block sliding pieces
+    for p in ["p", "r", "b", "q", "k"]:
+        for c in range(SIZE):
+            # black
+            moves = b.get_possible_moves(0, c, piece=p)  # overwrite the piece that's there
+            assert len(moves) == 0  # no moves available in back row for sliding pieces
+            # white
+            moves = b.get_possible_moves(7, c, piece=p.upper())  # overwrite the piece that's there
+            assert len(moves) == 0  # no moves available in back row for sliding pieces
+
+    # test knights
+    moves = b.get_possible_moves(0, 1, piece="n")
+    expected = {(2,0), (2,2)}
+    assert set(moves) == expected
+
+    moves = b.get_possible_moves(7, 6, piece="N")
+    expected = {(5,7), (5,5)}
+    assert set(moves) == expected
+
+
+def test_surrounded():
+    b = ChessBoard()
+    b.board = np.array((
+        ". . . . . . . .".split(),
+        ". . p p . . . .".split(),
+        ". . p . p p . .".split(),
+        ". . p . Q p . .".split(),
+        ". . p . . p . .".split(),
+        ". . p p p . . .".split(),
+        ". . . . . . . .".split(),
+        ". . . . . . . .".split(),
+    ))
+
+    set1 = (3, 4, "P")
+    expected1 = np.array((
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 0, 0, 0, 1, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+    ))
+
+    set2 = (3, 4, "R")
+    expected2 = np.array((
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 0, 0, 1, 0, 0, 0),
+        (0, 0, 1, 1, 0, 1, 0, 0),
+        (0, 0, 0, 0, 1, 0, 0, 0),
+        (0, 0, 0, 0, 1, 0, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+    ))
+
+    set3 = (3, 4, "N")
+    expected3 = np.array((
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 0, 1, 0, 1, 0, 0),
+        (0, 0, 1, 0, 0, 0, 1, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 1, 0, 0, 0, 1, 0),
+        (0, 0, 0, 1, 0, 1, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+    ))
+
+    set4 = (3, 4, "B")
+    expected4 = np.array((
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 1, 0, 0, 0, 0, 0),
+        (0, 0, 0, 1, 0, 1, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 0, 1, 0, 1, 0, 0),
+        (0, 0, 1, 0, 0, 0, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+    ))
+
+    set5 = (3, 4, "Q")
+    expected5 = np.array((
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 1, 0, 0, 0, 0, 0),
+        (0, 0, 0, 1, 1, 1, 0, 0),
+        (0, 0, 1, 1, 0, 1, 0, 0),
+        (0, 0, 0, 1, 1, 1, 0, 0),
+        (0, 0, 1, 0, 1, 0, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+    ))
+
+    set6 = (3, 4, "K")
+    expected6 = np.array((
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 0, 1, 1, 1, 0, 0),
+        (0, 0, 0, 1, 0, 1, 0, 0),
+        (0, 0, 0, 1, 1, 1, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+    ))
+
+    tests = [(set1, expected1), (set2, expected2), (set3, expected3),
+        (set4, expected4), (set5, expected5), (set6, expected6), ]
+    for (r, c, p), expected in tests:
+        moves = b.get_possible_moves(r, c, p)
+        moves_board = b.moves_to_array(moves)
+        assert np.all(moves_board == expected), "Test: {}".format((r, c, p))
+
+
 
 def test_empty_king_moves():
     b = ChessBoard()

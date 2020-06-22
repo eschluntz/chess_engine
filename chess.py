@@ -98,17 +98,17 @@ class ChessBoard(object):
         def get_jumping_moves(jumps : Sequence[Tuple[int, int]]) -> Sequence[Tuple[int, int]]:
             """Filter a list of jumping moves and return the valid ones"""
             moves = []
-            print("-----------------------")
-            print(self.board)
+            # print("-----------------------")
+            # print(self.board)
             for dr, dc in jumps:
                 r2, c2 = r + dr, c + dc
-                print("looking at: {}".format((r2, c2)))
+                # print("looking at: {}".format((r2, c2)))
                 if inbound(r2, c2):
-                    print("inbound")
-                    print("contents: {}".format(self.board[r2, c2]))
+                    # print("inbound")
+                    # print("contents: {}".format(self.board[r2, c2]))
                     if not my_piece(self.board[r2, c2]):
                         moves.append((r2, c2))
-                        print("added!")
+                        # print("added!")
             return moves
 
         # piece movements
@@ -120,14 +120,28 @@ class ChessBoard(object):
 
         piece_type = piece.lower()
         if piece_type == "p":
-            # pawns are both asymmetric, and moves depend on their position D:
+            # pawns are 1. asymmetric, 2. moves depend on their position, 3. move depends on opponents D:
             if piece.isupper():  # white
-                pawn_steps = [(-1, 0)]
-                max_steps = 2 if r == 6 else 1  # double jump from starting row
+                pawn_jumps = []
+                if self.board[r - 1, c] == ".":  # jump forward if clear
+                    pawn_jumps.append((-1, 0))
+                    if r == 6 and self.board[r - 2, c] == ".":  # double jump if not blocked and on home row
+                        pawn_jumps.append((-2, 0))
+                for dc in [-1, 1]:  # captures
+                    r2, c2 = r - 1, c + dc
+                    if inbound(r2, c2) and self.board[r2, c2].islower():
+                        pawn_jumps.append((-1, dc))
             else:  # black
-                pawn_steps = [(1, 0)]
-                max_steps = 2 if r == 1 else 1  # double jump from starting row
-            moves = get_sliding_moves(pawn_steps, max_steps)
+                pawn_jumps = []
+                if self.board[r + 1, c] == ".":  # jump forward if clear
+                    pawn_jumps.append((1, 0))
+                    if r == 1 and self.board[r + 2, c] == ".":  # double jump if not blocked and on home row
+                        pawn_jumps.append((2, 0))
+                for dc in [-1, 1]:  # captures
+                    r2, c2 = r - 1, c + dc
+                    if inbound(r2, c2) and self.board[r2, c2].isupper():
+                        pawn_jumps.append((1, dc))
+            moves = get_jumping_moves(pawn_jumps)
         elif piece_type == "r":
             moves = get_sliding_moves(rook_steps)
         elif piece_type == "n":
@@ -142,13 +156,6 @@ class ChessBoard(object):
             raise ValueError("Unknown piece! {}".format(piece))
 
         return moves
-
-    def filter_legal_moves(self, piece: str, moves : Sequence[Tuple[int,int]]):
-        """Filters a list of moves to only include legal ones.
-        1. is not blocked by any other pieces
-        2. piece does not land on any of our other pieces.
-        3. TODO: does not put us in check
-        """
 
     def moves_to_array(self, moves : Sequence[Tuple[int,int]]) -> np.array:
         """For visualization purposes, draw all locations of moves onto a board"""
