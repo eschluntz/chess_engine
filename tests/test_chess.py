@@ -61,14 +61,14 @@ def test_dest_bugs():
         "P P P B B P P P".split(),
         "R . . . K . . R".split(),
     ))
-    dests = b.get_dests_for_piece(3, 3)
+    dests = b.get_dests_for_piece(4, 1)
     expected = np.array((
         (0, 0, 0, 0, 0, 0, 0, 0),
         (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 0, 1, 1, 0, 0, 0),
         (0, 0, 0, 0, 0, 0, 0, 0),
         (0, 0, 0, 0, 0, 0, 0, 0),
         (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 1, 1, 0, 0, 0, 0, 0),
         (0, 0, 0, 0, 0, 0, 0, 0),
         (0, 0, 0, 0, 0, 0, 0, 0),
     ))
@@ -397,14 +397,23 @@ def test_perft_moves():
     Tests the .moves() function by counting the number of moves it returns for various boards"""
 
     b = ChessBoard()
+    b.turn = "white"
+    moves = b.moves()
+    assert len(moves) == 20
+    b.turn = "black"
     moves = b.moves()
     assert len(moves) == 20
 
     b.clear_pieces()
+    b.turn = "white"
+    moves = b.moves()
+    assert len(moves) == 0
+    b.turn = "black"
     moves = b.moves()
     assert len(moves) == 0
 
     # perft position 2
+    b.turn = "white"
     b.board = np.array((
         "r . . . k . . r".split(),
         "p . p p q p b .".split(),
@@ -416,21 +425,12 @@ def test_perft_moves():
         "R . . . K . . R".split(),
     ))
     moves = b.moves()
+    # for move in moves:
+    #     b.print_move(move)
     assert len(moves) == 46  # TODO this should be 48 once castling is supported
 
-    # perft position 3
-    b.board = np.array((
-        ". . . . . . . .".split(),
-        ". . p . . . . .".split(),
-        ". . . p . . . .".split(),
-        "K P . . . . . r".split(),
-        ". R . . . p . k".split(),
-        ". . . . . . . .".split(),
-        ". . . . P . P .".split(),
-        ". . . . . . . .".split(),
-    ))
+    b.turn = "black"
     moves = b.moves()
-
-    for move in moves:
-        b.print_move(move)
-    assert len(moves) == 16  # TODO this should be 14 if I disallow moves into check
+    # for move in moves:
+    #     b.print_move(move)
+    assert len(moves) == 41  # TODO this should be 48 once castling is supported

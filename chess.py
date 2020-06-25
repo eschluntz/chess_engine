@@ -152,7 +152,7 @@ class ChessBoard(object):
                     if r == 1 and self.board[r + 2, c] == ".":  # double jump if not blocked and on home row
                         pawn_jumps.append((2, 0))
                 for dc in [-1, 1]:  # captures
-                    r2, c2 = r - 1, c + dc
+                    r2, c2 = r + 1, c + dc
                     if inbound(r2, c2) and self.board[r2, c2].isupper():
                         pawn_jumps.append((1, dc))
             return get_jumping_dests(pawn_jumps)
@@ -232,3 +232,40 @@ class ChessBoard(object):
         for row in self.board:
             out += (" ".join(row) + "\n")
         return out
+
+# b = ChessBoard()
+# b.turn = "white"
+# moves = b.moves()
+# assert len(moves) == 20
+# b.turn = "black"
+# moves = b.moves()
+# assert len(moves) == 20
+
+# b.clear_pieces()
+# b.turn = "white"
+# moves = b.moves()
+# assert len(moves) == 0
+# b.turn = "black"
+# moves = b.moves()
+# assert len(moves) == 0
+
+# # perft position 2
+# b.turn = "white"
+# b.board = np.array((
+#     "r . . . k . . r".split(),
+#     "p . p p q p b .".split(),
+#     "b n . . p n p .".split(),
+#     ". . . P N . . .".split(),
+#     ". p . . P . . .".split(),
+#     ". . N . . Q . p".split(),
+#     "P P P B B P P P".split(),
+#     "R . . . K . . R".split(),
+# ))
+# moves = b.moves()
+# assert len(moves) == 46  # TODO this should be 48 once castling is supported
+
+# b.turn = "black"
+# moves = b.moves()
+# for move in moves:
+#     b.print_move(move)
+#     input("continue...")
