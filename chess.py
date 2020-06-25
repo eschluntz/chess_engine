@@ -2,12 +2,31 @@
 
 import time
 from typing import Dict, List, Tuple, Sequence
+from copy import deepcopy
+from termcolor import colored
 
 import numpy as np
 
 WIN_SCORE = 1000
 SIZE = 8
+class Move(object):
+    """Class to represent a move.
+    TODO: handle castles and promotions"""
 
+    def __init__(self, r_from : int, c_from : int, r_to : int, c_to : int, piece=None) -> None:
+        self.r_from = r_from
+        self.c_from = c_from
+        self.r_to = r_to
+        self.c_to = c_to
+        self.piece = piece
+
+        self.special = False
+
+    def __str__(self) -> str:
+        return "Move {} ({}, {}) -> ({}, {})".format(self.piece, self.r_from, self.c_from, self.r_to, self.c_to)
+
+    def __eq__(self, other) -> bool:
+        return self.__dict__ == other.__dict__
 
 class ChessBoard(object):
     TURNS = ["white", "black"]
@@ -18,6 +37,13 @@ class ChessBoard(object):
         self.turn = "white"
         # TODO: store info to assess whether castling is still allowed, and en passant is still allowed
         self.set_pieces()
+
+    def next_turn(self) -> str:
+        """Returns "white" or "black whichever is not our current turn"""
+        if self.turn == "white":
+            return "black"
+        else:
+            return "white"
 
     def clear_pieces(self):
         """Remove all pieces from the board"""
@@ -48,9 +74,9 @@ class ChessBoard(object):
         pieces = []
 
         if self.turn == "white":
-            my_piece = str.islower
-        else:
             my_piece = str.isupper
+        else:
+            my_piece = str.islower
 
         for r in range(SIZE):
             for c in range(SIZE):
@@ -59,10 +85,10 @@ class ChessBoard(object):
 
         return pieces
 
-    def get_possible_moves(self, r : int, c : int, piece=None) -> Sequence[Tuple[int, int]]:
-        """Given a particular piece, generates all possible on board moves for it.
+    def get_dests_for_piece(self, r : int, c : int, piece=None) -> Sequence[Tuple[int, int]]:
+        """Given a particular piece, generates all possible destinatinos for it to move to.
         piece: optional param to override piece at board location
-        TODO: filter moves that would put us in check.
+        TODO: filter destinations that would put us in check.
         Returns [(r,c),...]. """
 
         if piece is None:
@@ -78,9 +104,9 @@ class ChessBoard(object):
             """Checks if coords are in the board"""
             return 0 <= r <= 7 and 0 <= c <= 7
 
-        def get_sliding_moves(steps : Sequence[Tuple[int, int]], max_steps=SIZE) -> Sequence[Tuple[int, int]]:
-            """Expand a list of "step" directions into a list of possible moves for the piece"""
-            moves = []
+        def get_sliding_dests(steps : Sequence[Tuple[int, int]], max_steps=SIZE) -> Sequence[Tuple[int, int]]:
+            """Expand a list of "step" directions into a list of possible destinations for the piece"""
+            dests = []
             for dr, dc in steps:
                 for i in range(1, max_steps + 1):
                     r2, c2 = r + i * dr, c + i * dc  # slide along step direction
@@ -89,40 +115,29 @@ class ChessBoard(object):
                     elif my_piece(self.board[r2, c2]):
                         break
                     elif other_piece(self.board[r2, c2]):
-                        moves.append((r2, c2))
+                        dests.append((r2, c2))
                         break
                     else:  # empty square, don't break the search
-                        moves.append((r2, c2))
-            return moves
+                        dests.append((r2, c2))
+            return dests
 
-        def get_jumping_moves(jumps : Sequence[Tuple[int, int]]) -> Sequence[Tuple[int, int]]:
-            """Filter a list of jumping moves and return the valid ones"""
-            moves = []
-            # print("-----------------------")
-            # print(self.board)
+        def get_jumping_dests(jumps : Sequence[Tuple[int, int]]) -> Sequence[Tuple[int, int]]:
+            """Filter a list of jumping destinations and return the valid ones"""
+            dests = []
             for dr, dc in jumps:
                 r2, c2 = r + dr, c + dc
-                # print("looking at: {}".format((r2, c2)))
                 if inbound(r2, c2):
-                    # print("inbound")
-                    # print("contents: {}".format(self.board[r2, c2]))
                     if not my_piece(self.board[r2, c2]):
-                        moves.append((r2, c2))
-                        # print("added!")
-            return moves
+                        dests.append((r2, c2))
+            return dests
 
-        # piece movements
-        knight_jumps = [(1, 2), (1, -2), (2, 1), (2, -1), (-1, 2), (-1, -2), (-2, 1), (-2, -1)]
-        king_jumps = [(1,1), (1,0), (1,-1), (0,1), (0,-1), (-1,1), (-1,0), (-1,-1)]
-        rook_steps = [(1,0), (0,1), (-1,0), (0,-1)]
-        bishop_steps = [(1,1), (1,-1), (-1,1), (-1,-1)]
-        queen_steps = rook_steps + bishop_steps
-
-        piece_type = piece.lower()
-        if piece_type == "p":
-            # pawns are 1. asymmetric, 2. moves depend on their position, 3. move depends on opponents D:
+        def get_pawn_dests():
+            """pawns are actually the most complex pieces on the board! Their moves:
+            1. are asymmetric, 2. depend on their position, 3. depends on opponents 4. moves do not equal captures
+            TODO: implement promoting
+            TODO: clean up to be less repetitive?"""
+            pawn_jumps = []
             if piece.isupper():  # white
-                pawn_jumps = []
                 if self.board[r - 1, c] == ".":  # jump forward if clear
                     pawn_jumps.append((-1, 0))
                     if r == 6 and self.board[r - 2, c] == ".":  # double jump if not blocked and on home row
@@ -132,7 +147,6 @@ class ChessBoard(object):
                     if inbound(r2, c2) and self.board[r2, c2].islower():
                         pawn_jumps.append((-1, dc))
             else:  # black
-                pawn_jumps = []
                 if self.board[r + 1, c] == ".":  # jump forward if clear
                     pawn_jumps.append((1, 0))
                     if r == 1 and self.board[r + 2, c] == ".":  # double jump if not blocked and on home row
@@ -141,45 +155,75 @@ class ChessBoard(object):
                     r2, c2 = r - 1, c + dc
                     if inbound(r2, c2) and self.board[r2, c2].isupper():
                         pawn_jumps.append((1, dc))
-            moves = get_jumping_moves(pawn_jumps)
+            return get_jumping_dests(pawn_jumps)
+
+        # piece delta movements
+        knight_jumps = [(1, 2), (1, -2), (2, 1), (2, -1), (-1, 2), (-1, -2), (-2, 1), (-2, -1)]
+        king_jumps = [(1,1), (1,0), (1,-1), (0,1), (0,-1), (-1,1), (-1,0), (-1,-1)]
+        rook_steps = [(1,0), (0,1), (-1,0), (0,-1)]
+        bishop_steps = [(1,1), (1,-1), (-1,1), (-1,-1)]
+        queen_steps = rook_steps + bishop_steps
+
+        piece_type = piece.lower()
+        if piece_type == "p":
+            destinations = get_pawn_dests()
         elif piece_type == "r":
-            moves = get_sliding_moves(rook_steps)
+            destinations = get_sliding_dests(rook_steps)
         elif piece_type == "n":
-            moves = get_jumping_moves(knight_jumps)
+            destinations = get_jumping_dests(knight_jumps)
         elif piece_type == 'b':
-            moves = get_sliding_moves(bishop_steps)
+            destinations = get_sliding_dests(bishop_steps)
         elif piece_type == 'q':
-            moves = get_sliding_moves(queen_steps)
+            destinations = get_sliding_dests(queen_steps)
         elif piece_type == "k":
-            moves = get_jumping_moves(king_jumps)
+            destinations = get_jumping_dests(king_jumps)
         else:
             raise ValueError("Unknown piece! {}".format(piece))
 
-        return moves
+        return destinations
 
-    def moves_to_array(self, moves : Sequence[Tuple[int,int]]) -> np.array:
-        """For visualization purposes, draw all locations of moves onto a board"""
+    def dests_to_array(self, dests : Sequence[Tuple[int,int]]) -> np.array:
+        """For visualization purposes, draw all locations of destinations onto a board"""
         board = np.full(shape=(SIZE, SIZE), fill_value=0)
-        for r, c in moves:
+        for r, c in dests:
             board[r, c] = 1
         return board
 
-    # def moves(self):
-    #     """returns a list of all possible moves given the current board state and turn"""
+    def moves(self) -> Sequence[Move]:
+        """returns a list of all possible moves given the current board state and turn.
+        Move: ((r_from, c_from), (r_to, c_to))"""
 
-    #     # 1 find all my pieces. TODO: better to just maintain this as a second datastore?
-    #     pieces = self.find_my_pieces()
+        # 1 find all my pieces. TODO: better to just maintain this as a second datastore?
+        pieces = self.find_my_pieces()
 
-    #     # generate possible moves
-    #     for piece, row, column in pieces:
-    #         pos_moves = self.get_possible_moves(piece, row, column)
+        # generate possible moves
+        all_moves = []
+        for piece, r_from, c_from in pieces:
+            for r_to, c_to in self.get_dests_for_piece(r_from, c_from):
+                move = Move(r_from, c_from, r_to, c_to, piece=piece)
+                all_moves.append(move)
 
-    #         def allowed(r, c):
-    #             if self.turn == "white":
-    #                 return not self.board[r, c].isupper()  # can go anywhere except on our own pieces
-    #             else:
+        # TODO order these nicely to improve alpha beta pruning
+        return all_moves
 
-    #         moves = [ (r, c) for r,c in pos_moves if self.board[r,c] ]
+    def do_move(self, move: Move):
+        """Do a move on the chessboard"""
+        piece = self.board[move.r_from, move.c_from]
+        self.board[move.r_from, move.c_from] = "."
+        self.board[move.r_to, move.c_to] = piece
+        self.turn = self.next_turn()
+
+    def print_move(self, move: Move):
+        """Graphically represents a move"""
+        print(move)
+        board = deepcopy(self.board)
+        board = board.astype("<U20")  # to allow for color strings
+        board[move.r_from, move.c_from] = colored(board[move.r_from, move.c_from], "red")
+        board[move.r_to, move.c_to] = colored(board[move.r_to, move.c_to], "green")
+        out = ""
+        for row in board:
+            out += (" ".join(row) + "\n")
+        print(out)
 
 
     def __str__(self):

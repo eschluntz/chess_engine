@@ -3,7 +3,7 @@
 from typing import Set
 import numpy as np
 import copy
-from games.chess import ChessBoard, SIZE
+from games.chess import ChessBoard, SIZE, Move
 
 def test_setup_and_print():
     b = ChessBoard()
@@ -13,40 +13,67 @@ def test_setup_and_print():
     'P P P P P P P P\nR N B Q K B N R\n')
     assert out == expected
 
-def test_empty_pawn_moves():
+def test_empty_pawn_dests():
     b = ChessBoard()
     b.clear_pieces()
 
     for c in range(8):
-        assert {(5,c), (4,c)} == set(b.get_possible_moves(6, c, piece="P"))
-        assert {(2,c)} == set(b.get_possible_moves(3, c, piece="P"))
+        assert {(5,c), (4,c)} == set(b.get_dests_for_piece(6, c, piece="P"))
+        assert {(2,c)} == set(b.get_dests_for_piece(3, c, piece="P"))
 
         # flipped
-        assert {(2,c), (3,c)} == set(b.get_possible_moves(1, c, piece="p"))
-        assert {(4,c)} == set(b.get_possible_moves(3, c, piece="p"))
+        assert {(2,c), (3,c)} == set(b.get_dests_for_piece(1, c, piece="p"))
+        assert {(4,c)} == set(b.get_dests_for_piece(3, c, piece="p"))
 
 
-def test_starting_moves():
+def test_starting_dests():
     b = ChessBoard()
 
     # test block sliding pieces
     for p in ["p", "r", "b", "q", "k"]:
         for c in range(SIZE):
             # black
-            moves = b.get_possible_moves(0, c, piece=p)  # overwrite the piece that's there
-            assert len(moves) == 0  # no moves available in back row for sliding pieces
+            dests = b.get_dests_for_piece(0, c, piece=p)  # overwrite the piece that's there
+            assert len(dests) == 0  # no dests available in back row for sliding pieces
             # white
-            moves = b.get_possible_moves(7, c, piece=p.upper())  # overwrite the piece that's there
-            assert len(moves) == 0  # no moves available in back row for sliding pieces
+            dests = b.get_dests_for_piece(7, c, piece=p.upper())  # overwrite the piece that's there
+            assert len(dests) == 0  # no dests available in back row for sliding pieces
 
     # test knights
-    moves = b.get_possible_moves(0, 1, piece="n")
+    dests = b.get_dests_for_piece(0, 1, piece="n")
     expected = {(2,0), (2,2)}
-    assert set(moves) == expected
+    assert set(dests) == expected
 
-    moves = b.get_possible_moves(7, 6, piece="N")
+    dests = b.get_dests_for_piece(7, 6, piece="N")
     expected = {(5,7), (5,5)}
-    assert set(moves) == expected
+    assert set(dests) == expected
+
+
+def test_dest_bugs():
+    b = ChessBoard()
+    b.board = np.array((
+        "r . . . k . . r".split(),
+        "p . p p q p b .".split(),
+        "b n . . p n p .".split(),
+        ". . . P N . . .".split(),
+        ". p . . P . . .".split(),
+        ". . N . . Q . p".split(),
+        "P P P B B P P P".split(),
+        "R . . . K . . R".split(),
+    ))
+    dests = b.get_dests_for_piece(3, 3)
+    expected = np.array((
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 0, 1, 1, 0, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (0, 0, 0, 0, 0, 0, 0, 0),
+    ))
+    dests_board = b.dests_to_array(dests)
+    assert np.all(dests_board == expected), "Test: Pawn bug from perft 1"
 
 
 def test_surrounded():
@@ -137,17 +164,16 @@ def test_surrounded():
     tests = [(set1, expected1), (set2, expected2), (set3, expected3),
         (set4, expected4), (set5, expected5), (set6, expected6), ]
     for (r, c, p), expected in tests:
-        moves = b.get_possible_moves(r, c, p)
-        moves_board = b.moves_to_array(moves)
-        assert np.all(moves_board == expected), "Test: {}".format((r, c, p))
+        dests = b.get_dests_for_piece(r, c, p)
+        dests_board = b.dests_to_array(dests)
+        assert np.all(dests_board == expected), "Test: {}".format((r, c, p))
 
 
-
-def test_empty_king_moves():
+def test_empty_king_dests():
     b = ChessBoard()
     b.clear_pieces()
 
-    for k in ["k", "K"]:  # player should not affect moves
+    for k in ["k", "K"]:  # player should not affect dests
         start1 = (3, 5)
         expected1 = np.array((
             (0, 0, 0, 0, 0, 0, 0, 0),
@@ -186,17 +212,18 @@ def test_empty_king_moves():
 
         tests = [(start1, expected1), (start2, expected2), (start3, expected3)]
         for (r, c), expected in tests:
-            moves = b.get_possible_moves(r, c, piece=k)
-            moves_board = b.moves_to_array(moves)
+            dests = b.get_dests_for_piece(r, c, piece=k)
+            dests_board = b.dests_to_array(dests)
             print("----- {}".format((k, r, c)))
-            print(moves_board)
-            assert np.all(moves_board == expected)
+            print(dests_board)
+            assert np.all(dests_board == expected)
 
-def test_empty_rook_moves():
+
+def test_empty_rook_dests():
     b = ChessBoard()
     b.clear_pieces()
 
-    for p in ["r", "R"]:  # player should not affect moves
+    for p in ["r", "R"]:  # player should not affect dests
         start1 = (3, 5)
         expected1 = np.array((
             (0, 0, 0, 0, 0, 1, 0, 0),
@@ -223,15 +250,16 @@ def test_empty_rook_moves():
 
         tests = [(start1, expected1), (start2, expected2)]
         for (r, c), expected in tests:
-            moves = b.get_possible_moves(r, c, piece=p)
-            moves_board = b.moves_to_array(moves)
-            assert np.all(moves_board == expected)
+            dests = b.get_dests_for_piece(r, c, piece=p)
+            dests_board = b.dests_to_array(dests)
+            assert np.all(dests_board == expected)
 
-def test_empty_knight_moves():
+
+def test_empty_knight_dests():
     b = ChessBoard()
     b.clear_pieces()
 
-    for p in ["n", "N"]:  # player should not affect moves
+    for p in ["n", "N"]:  # player should not affect dests
         start1 = (3, 5)
         expected1 = np.array((
             (0, 0, 0, 0, 0, 0, 0, 0),
@@ -258,15 +286,16 @@ def test_empty_knight_moves():
 
         tests = [(start1, expected1), (start2, expected2)]
         for (r, c), expected in tests:
-            moves = b.get_possible_moves(r, c, piece=p)
-            moves_board = b.moves_to_array(moves)
-            assert np.all(moves_board == expected)
+            dests = b.get_dests_for_piece(r, c, piece=p)
+            dests_board = b.dests_to_array(dests)
+            assert np.all(dests_board == expected)
 
-def test_empty_bishop_moves():
+
+def test_empty_bishop_dests():
     b = ChessBoard()
     b.clear_pieces()
 
-    for p in ["b", "B"]:  # player should not affect moves
+    for p in ["b", "B"]:  # player should not affect dests
         start1 = (3, 5)
         expected1 = np.array((
             (0, 0, 1, 0, 0, 0, 0, 0),
@@ -293,17 +322,18 @@ def test_empty_bishop_moves():
 
         tests = [(start1, expected1), (start2, expected2)]
         for (r, c), expected in tests:
-            moves = b.get_possible_moves(r, c, piece=p)
-            moves_board = b.moves_to_array(moves)
+            dests = b.get_dests_for_piece(r, c, piece=p)
+            dests_board = b.dests_to_array(dests)
             print("----- {}".format((p, r, c)))
-            print(moves_board)
-            assert np.all(moves_board == expected)
+            print(dests_board)
+            assert np.all(dests_board == expected)
 
-def test_empty_queen_moves():
+
+def test_empty_queen_dests():
     b = ChessBoard()
     b.clear_pieces()
 
-    for p in ["q", "Q"]:  # player should not affect moves
+    for p in ["q", "Q"]:  # player should not affect dests
         start1 = (3, 5)
         expected1 = np.array((
             (0, 0, 1, 0, 0, 1, 0, 0),
@@ -330,6 +360,77 @@ def test_empty_queen_moves():
 
         tests = [(start1, expected1), (start2, expected2)]
         for (r, c), expected in tests:
-            moves = b.get_possible_moves(r, c, piece=p)
-            moves_board = b.moves_to_array(moves)
-            assert np.all(moves_board == expected)
+            dests = b.get_dests_for_piece(r, c, piece=p)
+            dests_board = b.dests_to_array(dests)
+            assert np.all(dests_board == expected)
+
+
+def test_find_my_pieces():
+    b = ChessBoard()
+
+    # white
+    pieces = b.find_my_pieces()
+    coords = set([ (r, c) for _, r, c in pieces])
+    expected_coords = set([ (r, c) for r in [6, 7] for c in range(SIZE) ])
+    assert coords == expected_coords
+
+    # black
+    b.turn = "black"
+    pieces = b.find_my_pieces()
+    coords = set([ (r, c) for _, r, c in pieces])
+    expected_coords = set([ (r, c) for r in [0, 1] for c in range(SIZE) ])
+    assert coords == expected_coords
+
+
+def test_moves_simple():
+    b = ChessBoard()
+    b.clear_pieces()
+    b.board[3,3] = "P"
+
+    moves = b.moves()
+    print(moves[0])
+    assert moves == [Move(3, 3, 2, 3, piece="P")]
+
+
+def test_perft_moves():
+    """https://www.chessprogramming.org/Perft_Results
+    Tests the .moves() function by counting the number of moves it returns for various boards"""
+
+    b = ChessBoard()
+    moves = b.moves()
+    assert len(moves) == 20
+
+    b.clear_pieces()
+    moves = b.moves()
+    assert len(moves) == 0
+
+    # perft position 2
+    b.board = np.array((
+        "r . . . k . . r".split(),
+        "p . p p q p b .".split(),
+        "b n . . p n p .".split(),
+        ". . . P N . . .".split(),
+        ". p . . P . . .".split(),
+        ". . N . . Q . p".split(),
+        "P P P B B P P P".split(),
+        "R . . . K . . R".split(),
+    ))
+    moves = b.moves()
+    assert len(moves) == 46  # TODO this should be 48 once castling is supported
+
+    # perft position 3
+    b.board = np.array((
+        ". . . . . . . .".split(),
+        ". . p . . . . .".split(),
+        ". . . p . . . .".split(),
+        "K P . . . . . r".split(),
+        ". R . . . p . k".split(),
+        ". . . . . . . .".split(),
+        ". . . . P . P .".split(),
+        ". . . . . . . .".split(),
+    ))
+    moves = b.moves()
+
+    for move in moves:
+        b.print_move(move)
+    assert len(moves) == 16  # TODO this should be 14 if I disallow moves into check
