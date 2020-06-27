@@ -12,6 +12,8 @@ from games.chess import (
     _get_piece_table_score,
     eval_chess_board,
 )
+from games.tictactoe import minmax
+
 
 def test_setup_and_print():
     b = ChessBoard()
@@ -467,6 +469,12 @@ def test_mobility_score():
     b.clear_pieces()
     assert 0 == _get_mobility_score(b), "empty board test"
 
+    b.set_pieces()
+    b.board[6,4] = "."  # advance king's pawn
+    b.board[5,4] = "P"
+    # - 1 for pawn, +9 for bish and queen + 1 for N, +1 K
+    assert (30 - 20) * 0.1 == _get_mobility_score(b), "first move"
+
 
 def test_pice_table_score():
     b = ChessBoard()
@@ -493,3 +501,11 @@ def test_eval_chess_board():
     score, over = eval_chess_board(b)
     assert over == False
     assert score > 0, "first move should increase score"
+
+
+def test_minmax():
+    b = ChessBoard()
+    score, best_move = minmax(b, eval_chess_board, 4)
+    print(score)
+    b.print_move(best_move)
+    # assert False

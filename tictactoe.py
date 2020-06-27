@@ -119,7 +119,7 @@ def minmax(board, eval_fn, max_depth, alpha=-np.inf, beta=np.inf):
         return score, None
 
     # are we maxing or mining?
-    direction = 1.0 if board.turn == "x" else -1.0
+    direction = 1.0 if board.turn in ["x", "white"] else -1.0
 
     # loop!
     best_move = None

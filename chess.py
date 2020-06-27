@@ -17,17 +17,24 @@ class Move(object):
     """Class to represent a move.
     TODO: handle castles and promotions"""
 
-    def __init__(self, r_from : int, c_from : int, r_to : int, c_to : int, piece=None) -> None:
+    def __init__(self, r_from : int, c_from : int, r_to : int, c_to : int, piece=None, captured=None) -> None:
         self.r_from = r_from
         self.c_from = c_from
         self.r_to = r_to
         self.c_to = c_to
+
+        # optional and are filled in by the board when doing a move
         self.piece = piece
+        self.captured = captured
 
         self.special = False
 
     def __str__(self) -> str:
-        return "Move {} ({}, {}) -> ({}, {})".format(self.piece, self.r_from, self.c_from, self.r_to, self.c_to)
+        if self.captured is None:
+            capt = ""
+        else:
+            capt = " x {}".format(self.captured)
+        return "Move {} ({}, {}) -> ({}, {}) {}".format(self.piece, self.r_from, self.c_from, self.r_to, self.c_to, capt)
 
     def __eq__(self, other) -> bool:
         return self.__dict__ == other.__dict__
@@ -38,7 +45,7 @@ class ChessBoard(object):
 
     def __init__(self):
         self.board = np.full(shape=(SIZE, SIZE), fill_value=".", dtype="<U1")
-        self.past_moves = []
+        self.past_moves = []  # list of [(Move, piece_taken)]
         self.turn = "white"
         # TODO: store info to assess whether castling is still allowed, and en passant is still allowed
         self.set_pieces()
@@ -218,9 +225,24 @@ class ChessBoard(object):
     def do_move(self, move: Move):
         """Do a move on the chessboard"""
         piece = self.board[move.r_from, move.c_from]
+        captured = self.board[move.r_to, move.c_to]
         self.board[move.r_from, move.c_from] = "."
         self.board[move.r_to, move.c_to] = piece
         self.turn = self.next_turn()
+
+        # save move
+        move.captured = captured
+        move.piece = piece
+        self.past_moves.append(move)
+
+    def undo_move(self):
+        """Undo the most recent move"""
+        move = self.past_moves.pop()
+
+        piece = move.piece
+        captured = move.captured
+        self.board[move.r_from, move.c_from] = piece
+        self.board[move.r_to, move.c_to] = captured
 
     def print_move(self, move: Move):
         """Graphically represents a move"""
@@ -376,3 +398,8 @@ def eval_chess_board(board: ChessBoard) -> float:
     game_over = "k" not in board.board or "K" not in board.board
 
     return (score, game_over)
+
+
+def play():
+    """Play a game of chess"""
+    b = ChessBoard()
