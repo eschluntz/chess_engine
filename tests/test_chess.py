@@ -3,7 +3,15 @@
 from typing import Set
 import numpy as np
 import copy
-from games.chess import ChessBoard, SIZE, Move
+from games.chess import (
+    ChessBoard,
+    SIZE,
+    Move,
+    _get_material_score,
+    _get_mobility_score,
+    _get_piece_table_score,
+    eval_chess_board,
+)
 
 def test_setup_and_print():
     b = ChessBoard()
@@ -434,3 +442,54 @@ def test_perft_moves():
     # for move in moves:
     #     b.print_move(move)
     assert len(moves) == 41  # TODO this should be 48 once castling is supported
+
+
+def test_material_score():
+    b = ChessBoard()
+    assert 0 == _get_material_score(b), "start board test"
+
+    b.clear_pieces()
+    assert 0 == _get_material_score(b), "empty board test"
+
+    b.board[0,0] = "K"
+    b.board[0,1] = "q"
+    b.board[0,2] = "p"
+    assert 20000 - 900 - 100 == _get_material_score(b), "a few pieces"
+
+
+def test_mobility_score():
+    b = ChessBoard()
+    assert 0 == _get_mobility_score(b), "start board test"
+
+    b.board[0:2,:] = np.full(shape=(2, SIZE), fill_value=".", dtype="<U1")
+    assert 20 * 0.1 == _get_mobility_score(b), "one side test"
+
+    b.clear_pieces()
+    assert 0 == _get_mobility_score(b), "empty board test"
+
+
+def test_pice_table_score():
+    b = ChessBoard()
+    assert 0 == _get_piece_table_score(b), "start board test"
+
+    b.clear_pieces()
+    assert 0 == _get_piece_table_score(b), "empty board test"
+
+    b.board[0,0] = "N"  # -50
+    b.board[0,1] = "q"  # +10
+    assert -40 == _get_piece_table_score(b), "simple piece test"
+
+
+def test_eval_chess_board():
+    b = ChessBoard()
+    assert (0.0, False) == eval_chess_board(b), "start board test"
+
+    b.clear_pieces()
+    assert (0.0, True) == eval_chess_board(b), "empty board test"
+
+    b.set_pieces()
+    b.board[6,4] = "."  # advance king's pawn
+    b.board[5,4] = "P"
+    score, over = eval_chess_board(b)
+    assert over == False
+    assert score > 0, "first move should increase score"

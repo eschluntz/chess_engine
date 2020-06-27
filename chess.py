@@ -9,6 +9,10 @@ import numpy as np
 
 WIN_SCORE = 1000
 SIZE = 8
+WHITE_PIECES = ["P", "R", "N", "B", "K", "Q"]
+BLACK_PIECES = [ p.lower() for p in WHITE_PIECES ]
+ALL_PIECES = WHITE_PIECES + BLACK_PIECES
+
 class Move(object):
     """Class to represent a move.
     TODO: handle castles and promotions"""
@@ -27,6 +31,7 @@ class Move(object):
 
     def __eq__(self, other) -> bool:
         return self.__dict__ == other.__dict__
+
 
 class ChessBoard(object):
     TURNS = ["white", "black"]
@@ -68,12 +73,15 @@ class ChessBoard(object):
         self.board[6] = np.array([p.upper() for p in front_row])
         self.board[7] = np.array([p.upper() for p in back_row])
 
-    def find_my_pieces(self) -> Sequence[Tuple[str, int, int]]:
+    def find_my_pieces(self, turn=None) -> Sequence[Tuple[str, int, int]]:
         """Returns a list of all the current player's pieces and their locations.
+        turn: override the current turn
         [(piece, row, column),]"""
         pieces = []
 
-        if self.turn == "white":
+        if turn is None:
+            turn = self.turn
+        if turn == "white":
             my_piece = str.isupper
         else:
             my_piece = str.islower
@@ -189,12 +197,13 @@ class ChessBoard(object):
             board[r, c] = 1
         return board
 
-    def moves(self) -> Sequence[Move]:
+    def moves(self, turn=None) -> Sequence[Move]:
         """returns a list of all possible moves given the current board state and turn.
-        Move: ((r_from, c_from), (r_to, c_to))"""
+        turn: "white" or "black" or None, to use the current turn
+        Returns a list of Move Objects."""
 
         # 1 find all my pieces. TODO: better to just maintain this as a second datastore?
-        pieces = self.find_my_pieces()
+        pieces = self.find_my_pieces(turn)
 
         # generate possible moves
         all_moves = []
@@ -233,39 +242,137 @@ class ChessBoard(object):
             out += (" ".join(row) + "\n")
         return out
 
-# b = ChessBoard()
-# b.turn = "white"
-# moves = b.moves()
-# assert len(moves) == 20
-# b.turn = "black"
-# moves = b.moves()
-# assert len(moves) == 20
+_PIECE_TABLE = None  # cache
+def _get_piece_tables() -> Dict:
+    """Returns piece tables for the eval function.
+    source: https://www.chessprogramming.org/Simplified_Evaluation_Function"""
+    global _PIECE_TABLE
+    if _PIECE_TABLE is not None:
+        return _PIECE_TABLE
 
-# b.clear_pieces()
-# b.turn = "white"
-# moves = b.moves()
-# assert len(moves) == 0
-# b.turn = "black"
-# moves = b.moves()
-# assert len(moves) == 0
+    piece_table = {}
+    piece_table["P"] = np.array((
+        (0,  0,  0,  0,  0,  0,  0,  0),
+        (50, 50, 50, 50, 50, 50, 50, 50),
+        (10, 10, 20, 30, 30, 20, 10, 10),
+        (5,  5, 10, 25, 25, 10,  5,  5),
+        (0,  0,  0, 20, 20,  0,  0,  0),
+        (5, -5,-10,  0,  0,-10, -5,  5),
+        (5, 10, 10,-20,-20, 10, 10,  5),
+        (0,  0,  0,  0,  0,  0,  0,  0),
+    ))
+    piece_table["N"]  = np.array((
+        (-50,-40,-30,-30,-30,-30,-40,-50),
+        (-40,-20,  0,  0,  0,  0,-20,-40),
+        (-30,  0, 10, 15, 15, 10,  0,-30),
+        (-30,  5, 15, 20, 20, 15,  5,-30),
+        (-30,  0, 15, 20, 20, 15,  0,-30),
+        (-30,  5, 10, 15, 15, 10,  5,-30),
+        (-40,-20,  0,  5,  5,  0,-20,-40),
+        (-50,-40,-30,-30,-30,-30,-40,-50),
+    ))
+    piece_table["B"]  = np.array((
+        (-20,-10,-10,-10,-10,-10,-10,-20),
+        (-10,  0,  0,  0,  0,  0,  0,-10),
+        (-10,  0,  5, 10, 10,  5,  0,-10),
+        (-10,  5,  5, 10, 10,  5,  5,-10),
+        (-10,  0, 10, 10, 10, 10,  0,-10),
+        (-10, 10, 10, 10, 10, 10, 10,-10),
+        (-10,  5,  0,  0,  0,  0,  5,-10),
+        (-20,-10,-10,-10,-10,-10,-10,-20),
+    ))
+    piece_table["R"]  = np.array((
+        ( 0,  0,  0,  0,  0,  0,  0,  0),
+        ( 5, 10, 10, 10, 10, 10, 10,  5),
+        (-5,  0,  0,  0,  0,  0,  0, -5),
+        (-5,  0,  0,  0,  0,  0,  0, -5),
+        (-5,  0,  0,  0,  0,  0,  0, -5),
+        (-5,  0,  0,  0,  0,  0,  0, -5),
+        (-5,  0,  0,  0,  0,  0,  0, -5),
+        ( 0,  0,  0,  5,  5,  0,  0,  0),
+    ))
+    piece_table["Q"]  = np.array((
+        (-20,-10,-10, -5, -5,-10,-10,-20),
+        (-10,  0,  0,  0,  0,  0,  0,-10),
+        (-10,  0,  5,  5,  5,  5,  0,-10),
+        ( -5,  0,  5,  5,  5,  5,  0, -5),
+        (  0,  0,  5,  5,  5,  5,  0, -5),
+        (-10,  5,  5,  5,  5,  5,  0,-10),
+        (-10,  0,  5,  0,  0,  0,  0,-10),
+        (-20,-10,-10, -5, -5,-10,-10,-20),
+    ))
+    piece_table["K"]  = np.array((
+        (-30,-40,-40,-50,-50,-40,-40,-30),
+        (-30,-40,-40,-50,-50,-40,-40,-30),
+        (-30,-40,-40,-50,-50,-40,-40,-30),
+        (-30,-40,-40,-50,-50,-40,-40,-30),
+        (-20,-30,-30,-40,-40,-30,-30,-20),
+        (-10,-20,-20,-20,-20,-20,-20,-10),
+        ( 20, 20,  0,  0,  0,  0, 20, 20),
+        ( 20, 30, 10,  0,  0, 10, 30, 20),
+    ))
 
-# # perft position 2
-# b.turn = "white"
-# b.board = np.array((
-#     "r . . . k . . r".split(),
-#     "p . p p q p b .".split(),
-#     "b n . . p n p .".split(),
-#     ". . . P N . . .".split(),
-#     ". p . . P . . .".split(),
-#     ". . N . . Q . p".split(),
-#     "P P P B B P P P".split(),
-#     "R . . . K . . R".split(),
-# ))
-# moves = b.moves()
-# assert len(moves) == 46  # TODO this should be 48 once castling is supported
+    # fill in black piece table. Flip and negate values
+    for p in list(piece_table.keys()):  # cast to list to allow iterating over original keys
+        piece_table[p.lower()] = -np.flip(piece_table[p])
 
-# b.turn = "black"
-# moves = b.moves()
-# for move in moves:
-#     b.print_move(move)
-#     input("continue...")
+    _PIECE_TABLE = piece_table
+    return piece_table
+
+
+def _get_material_score(board: ChessBoard) -> int:
+    """Adds up material values and returns partial board score"""
+    values = {
+        "K": 20000,
+        "k": -20000,
+        "Q": 900,
+        "q":-900,
+        "R": 500,
+        "r":-500,
+        "B": 330,
+        "b":-330,
+        "N": 320,
+        "n":-320,
+        "P": 100,
+        "p":-100,
+        ".": 0
+    }
+    return np.sum(np.vectorize(values.__getitem__)(board.board))
+
+
+def _get_mobility_score(board: ChessBoard) -> int:
+    """Adds up a score for available moves for each team"""
+    MOVE_VALUE = 0.1
+    white_moves = len(board.moves("white"))
+    black_moves = len(board.moves("black"))
+    return MOVE_VALUE * (white_moves - black_moves)
+
+
+def _get_piece_table_score(board :ChessBoard) -> int:
+    """Calculates position scores based on piece tables.
+    source: https://www.chessprogramming.org/Simplified_Evaluation_Function"""
+    piece_table = _get_piece_tables()
+    table_score = 0
+    for p in ALL_PIECES:
+        table_score += np.sum((board.board == p) * piece_table[p])
+    return table_score
+
+
+def eval_chess_board(board: ChessBoard) -> float:
+    """Evaluates a ChessBoard.
+    "white" winning -> positive
+    "black" winning -> negative.
+    game over -> +/- 200,000.
+    return (score, game_over)
+    Scores are roughly in "millipawns" pawn / 100
+
+    Tons of good heuristics here: https://www.chessprogramming.org/Evaluation
+    """
+    material_score = _get_material_score(board)
+    mobility_score = _get_mobility_score(board)
+    table_score = _get_piece_table_score(board)
+
+    score = material_score + mobility_score + table_score
+    game_over = "k" not in board.board or "K" not in board.board
+
+    return (score, game_over)
