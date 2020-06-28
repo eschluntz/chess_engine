@@ -6,6 +6,7 @@ from copy import deepcopy
 from termcolor import colored
 
 import numpy as np
+# from tictactoe import minmax
 
 WIN_SCORE = 1000
 SIZE = 8
@@ -37,7 +38,9 @@ class Move(object):
         return "Move {} ({}, {}) -> ({}, {}) {}".format(self.piece, self.r_from, self.c_from, self.r_to, self.c_to, capt)
 
     def __eq__(self, other) -> bool:
-        return self.__dict__ == other.__dict__
+        """Note: only compares to and from positions, not piece or capture"""
+        return (self.r_from, self.c_from, self.r_to, self.c_to) == \
+            (other.r_from, other.c_from, other.r_to, other.c_to)
 
 
 class ChessBoard(object):
@@ -153,7 +156,8 @@ class ChessBoard(object):
             TODO: clean up to be less repetitive?"""
             pawn_jumps = []
             if piece.isupper():  # white
-                if self.board[r - 1, c] == ".":  # jump forward if clear
+                r2, c2 = r - 1, c
+                if inbound(r2, c2) and self.board[r2, c2] == ".":  # jump forward if clear
                     pawn_jumps.append((-1, 0))
                     if r == 6 and self.board[r - 2, c] == ".":  # double jump if not blocked and on home row
                         pawn_jumps.append((-2, 0))
@@ -162,7 +166,8 @@ class ChessBoard(object):
                     if inbound(r2, c2) and self.board[r2, c2].islower():
                         pawn_jumps.append((-1, dc))
             else:  # black
-                if self.board[r + 1, c] == ".":  # jump forward if clear
+                r2, c2 = r +1, c
+                if inbound(r2, c2) and self.board[r2, c2] == ".":  # jump forward if clear
                     pawn_jumps.append((1, 0))
                     if r == 1 and self.board[r + 2, c] == ".":  # double jump if not blocked and on home row
                         pawn_jumps.append((2, 0))
@@ -243,6 +248,7 @@ class ChessBoard(object):
         captured = move.captured
         self.board[move.r_from, move.c_from] = piece
         self.board[move.r_to, move.c_to] = captured
+        self.turn = self.next_turn()
 
     def print_move(self, move: Move):
         """Graphically represents a move"""
@@ -255,7 +261,6 @@ class ChessBoard(object):
         for row in board:
             out += (" ".join(row) + "\n")
         print(out)
-
 
     def __str__(self):
         """Displays the chess board"""
@@ -400,6 +405,77 @@ def eval_chess_board(board: ChessBoard) -> float:
     return (score, game_over)
 
 
-def play():
+def file_to_column(f : str) -> int:
+    """Translates a letter 'file' to column index"""
+    c = ord(f.lower()) - ord("a")
+    if c < 0 or c > 7:
+        raise ValueError("File is out of bounds: {}".format(f))
+    return c
+
+def rank_to_row(rank: str) -> int:
+    """Translates a number Rank to row index"""
+    r = 8 - int(rank)
+
+    if r < 0 or r > 7:
+        raise ValueError("Rank is out of bounds: {}".format(rank))
+    return r
+
+
+def get_user_move(board: ChessBoard):
+    """Gets CLI input for the next move.
+    allow_illegal: don't check that move was a legal one"""
+    print("Turn: {}".format(board.turn))
+
+    possible_moves = board.moves()
+
+    move = None
+    while move is None:
+        uci_str = input("UCI move: ")
+        uci_str = uci_str.replace(" ", "")  # strip spaces
+        uci_str = uci_str.replace(",", "")  # strip commas
+
+        # parse input
+        try:
+            c_from = file_to_column(uci_str[0])
+            r_from = rank_to_row(uci_str[1])
+            c_to = file_to_column(uci_str[2])
+            r_to = rank_to_row(uci_str[3])
+        except (ValueError, TypeError):
+            print("Invalid move input")
+            continue
+
+        # see if engine agrees it was a valid move
+        piece = board.board[r_from, c_from]
+        captured = board.board[r_to, c_to]
+        move = Move(r_from,c_from, r_to, c_to, piece, captured)
+        if move not in possible_moves:
+            print("Illegal move!")
+            board.print_move(move)
+            move = None
+            continue
+
+    return move
+
+
+
+
+
+
+
+def play(white="human", black="computer"):
     """Play a game of chess"""
     b = ChessBoard()
+    player = {"white": white, "black": black}
+    print(b)
+    while True:
+        # white
+        if player[b.turn] == "human":
+            move = get_user_move(b)
+        else:
+            _, move = minmax(b, eval_chess_board, 4)
+        b.do_move(move)
+        b.print_move(move)
+
+
+if __name__ == "__main__":
+    play()

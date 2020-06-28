@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 
 from typing import Set
-import numpy as np
 import copy
+from unittest import mock
+
+import numpy as np
+
 from games.chess import (
     ChessBoard,
     SIZE,
@@ -11,8 +14,11 @@ from games.chess import (
     _get_mobility_score,
     _get_piece_table_score,
     eval_chess_board,
+    get_user_move,
 )
 from games.tictactoe import minmax
+
+import games
 
 
 def test_setup_and_print():
@@ -503,9 +509,83 @@ def test_eval_chess_board():
     assert score > 0, "first move should increase score"
 
 
-def test_minmax():
+def test_minmax_1():
+    # sanity check best eval move
     b = ChessBoard()
-    score, best_move = minmax(b, eval_chess_board, 4)
-    print(score)
-    b.print_move(best_move)
-    # assert False
+    b.clear_pieces()
+    b.turn = "black"
+    b.board[1,4] = "k"
+    b.board[2,4] = "Q"  # best move for black is to take the queen
+    b.board[7,4] = "K"
+
+    _, move = minmax(b, eval_chess_board, 1)
+    expected = Move(1,4, 2,4, piece="k", captured="Q")
+    b.print_move(move)
+    assert move == expected
+
+    _, move = minmax(b, eval_chess_board, 4)
+    expected = Move(1,4, 2,4, piece="k", captured="Q")
+    b.print_move(move)
+    assert move == expected
+
+
+def test_minmax_2():
+    b = ChessBoard()
+    b.turn = "white"
+    b.board = np.array((
+        "r . b . k b . r".split(),
+        "p . p p . p p p".split(),
+        "n . . . p . . n".split(),
+        ". P . . . . q .".split(),  # take the vulnerable queen
+        ". . . P P . . .".split(),
+        "N . . . . . . .".split(),
+        "P P . . . P P P".split(),
+        "R . B Q K B N R".split(),
+    ))
+
+    _, move = minmax(b, eval_chess_board, 1)
+    expected = Move(7,2, 3,6)
+    assert move == expected
+
+    _, move = minmax(b, eval_chess_board, 2)
+    expected = Move(7,2, 3,6)
+    assert move == expected
+
+
+def test_minmax_3():
+    b = ChessBoard()
+    b.turn = "white"
+    # https://chesspuzzlesonline.com/solution/ps248/
+    b.board = np.array((
+        ". . . . . . . k".split(),
+        ". . r . n . p .".split(),
+        ". . . . B p . .".split(),
+        ". . . P . . . .".split(),
+        ". . . . . K p .".split(),
+        ". . . . . . P .".split(),
+        ". . p . . P P .".split(),
+        "R . . . . . . .".split(),  # rook to H1, mate
+    ))
+
+    _, move = minmax(b, eval_chess_board, 3)
+    b.print_move(move)
+    expected = Move(7,0, 7,7)
+    assert move == expected
+
+    # forked!
+    b.turn = "black"
+    b.board = np.array((
+        "r . b . k b . r".split(),
+        "p p p p n p p p".split(),
+        ". . . . . . . .".split(),
+        ". . . P . . . .".split(),
+        ". . . n . . . .".split(),
+        ". . . . . . . N".split(),
+        "P P P . . P P P".split(),  # fork the king and rook!
+        "R N B . K B . R".split(),
+    ))
+
+    _, move = minmax(b, eval_chess_board, 3)
+    b.print_move(move)
+    expected = Move(4,3, 6,2)
+    assert move == expected
