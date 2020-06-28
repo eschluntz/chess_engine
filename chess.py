@@ -6,7 +6,6 @@ from copy import deepcopy
 from termcolor import colored
 
 import numpy as np
-# from tictactoe import minmax
 
 WIN_SCORE = 1000
 SIZE = 8
@@ -478,4 +477,5 @@ def play(white="human", black="computer"):
 
 
 if __name__ == "__main__":
+    from tictactoe import minmax
     play()
