@@ -125,7 +125,18 @@ def minmax(board, eval_fn, max_depth, alpha=-np.inf, beta=np.inf):
     best_move = None
     best_score = -np.inf * direction
 
-    for move in board.moves():
+    all_moves = board.moves()
+
+    # order these nicely to improve alpha beta pruning
+    def score_move(move):
+        board.do_move(move)
+        score = eval_fn(board)
+        board.undo_move()
+        return score
+    all_moves.sort(key=score_move, reverse=(board.turn=="white"))  # TODO: fix white / x
+
+    # search the tree!
+    for move in all_moves:
         board.do_move(move)
         score, _ = minmax(board, eval_fn, max_depth - 1, alpha, beta)
         board.undo_move()

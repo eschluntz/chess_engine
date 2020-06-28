@@ -108,7 +108,7 @@ class ChessBoard(object):
 
         return pieces
 
-    def get_sliding_dests(self, r : int, c : int, player: str, steps : Sequence[Tuple[int, int]], max_steps=SIZE) -> Sequence[Tuple[int, int]]:
+    def _get_sliding_dests(self, r : int, c : int, player: str, steps : Sequence[Tuple[int, int]], max_steps=SIZE) -> Sequence[Tuple[int, int]]:
         """Expand a list of "step" directions into a list of possible destinations for the piece"""
         if player == "black":
             my_piece = str.islower
@@ -132,7 +132,7 @@ class ChessBoard(object):
                     dests.append((r2, c2))
         return dests
 
-    def get_jumping_dests(self, r : int, c : int, player : str, jumps : Sequence[Tuple[int, int]]) -> Sequence[Tuple[int, int]]:
+    def _get_jumping_dests(self, r : int, c : int, player : str, jumps : Sequence[Tuple[int, int]]) -> Sequence[Tuple[int, int]]:
         """Filter a list of jumping destinations and return the valid ones"""
         if player == "black":
             my_piece = str.islower
@@ -149,7 +149,7 @@ class ChessBoard(object):
                     dests.append((r2, c2))
         return dests
 
-    def get_pawn_dests(self, r : int, c : int, player : str):
+    def _get_pawn_dests(self, r : int, c : int, player : str):
         """pawns are actually the most complex pieces on the board! Their moves:
         1. are asymmetric, 2. depend on their position, 3. depends on opponents 4. moves do not equal captures
         TODO: implement promoting"""
@@ -182,7 +182,7 @@ class ChessBoard(object):
                 r2, c2 = r + 1, c + dc
                 if inbound(r2, c2) and self.board[r2, c2].isupper():
                     pawn_jumps.append((1, dc))
-        return self.get_jumping_dests(r, c, player, pawn_jumps)
+        return self._get_jumping_dests(r, c, player, pawn_jumps)
 
     def get_dests_for_piece(self, r : int, c : int, piece=None) -> Sequence[Tuple[int, int]]:
         """Given a particular piece, generates all possible destinatinos for it to move to.
@@ -206,17 +206,17 @@ class ChessBoard(object):
 
         piece_type = piece.lower()
         if piece_type == "p":
-            destinations = self.get_pawn_dests(r, c, player)
+            destinations = self._get_pawn_dests(r, c, player)
         elif piece_type == "r":
-            destinations = self.get_sliding_dests(r, c, player, rook_steps)
+            destinations = self._get_sliding_dests(r, c, player, rook_steps)
         elif piece_type == "n":
-            destinations = self.get_jumping_dests(r, c, player, knight_jumps)
+            destinations = self._get_jumping_dests(r, c, player, knight_jumps)
         elif piece_type == 'b':
-            destinations = self.get_sliding_dests(r, c, player, bishop_steps)
+            destinations = self._get_sliding_dests(r, c, player, bishop_steps)
         elif piece_type == 'q':
-            destinations = self.get_sliding_dests(r, c, player, queen_steps)
+            destinations = self._get_sliding_dests(r, c, player, queen_steps)
         elif piece_type == "k":
-            destinations = self.get_jumping_dests(r, c, player, king_jumps)
+            destinations = self._get_jumping_dests(r, c, player, king_jumps)
         else:
             raise ValueError("Unknown piece! {}".format(piece))
 
@@ -244,7 +244,6 @@ class ChessBoard(object):
                 move = Move(r_from, c_from, r_to, c_to, piece=piece)
                 all_moves.append(move)
 
-        # TODO order these nicely to improve alpha beta pruning
         return all_moves
 
     def do_move(self, move: Move):
