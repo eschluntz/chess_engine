@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 import time
-from typing import Dict, List, Tuple, Sequence
+from typing import Dict, List, Tuple, Sequence, Set
 from copy import deepcopy
 from termcolor import colored
+import functools
 
 import numpy as np
 
@@ -53,7 +54,8 @@ class ChessBoard(object):
 
     def __init__(self):
         self.board = np.full(shape=(SIZE, SIZE), fill_value=".", dtype="<U1")
-        self.past_moves = []  # list of [(Move, piece_taken)]
+        self.piece_set : Set[Tuple[str, int, int]] = set()
+        self.past_moves : Sequence[Tuple[Move, str]] = []
         self.turn = "white"
         # TODO: store info to assess whether castling is still allowed, and en passant is still allowed
         self.set_pieces()
@@ -65,11 +67,21 @@ class ChessBoard(object):
         else:
             return "white"
 
-    def clear_pieces(self):
+    def _reset_piece_set(self) -> None:
+        """Sets the piece list from the ground truth of the board"""
+        self.piece_set = set()
+        for r in range(SIZE):
+            for c in range(SIZE):
+                p = self.board[r,c]
+                if p != ".":
+                    self.piece_set.add((p, r, c))
+
+    def clear_pieces(self) -> None:
         """Remove all pieces from the board"""
         self.board = np.full(shape=(SIZE, SIZE), fill_value=".", dtype="<U1")
+        self._reset_piece_set()
 
-    def set_pieces(self):
+    def set_pieces(self) -> None:
         """Places all the pieces on the board.
         white pieces: UPPER-CASE
         black pieces: lower-case
@@ -88,11 +100,12 @@ class ChessBoard(object):
         self.board[6] = np.array([p.upper() for p in front_row])
         self.board[7] = np.array([p.upper() for p in back_row])
 
+        self._reset_piece_set()
+
     def find_my_pieces(self, turn=None) -> Sequence[Tuple[str, int, int]]:
         """Returns a list of all the current player's pieces and their locations.
         turn: override the current turn
         [(piece, row, column),]"""
-        pieces = []
 
         if turn is None:
             turn = self.turn
@@ -101,12 +114,18 @@ class ChessBoard(object):
         else:
             my_piece = str.islower
 
-        for r in range(SIZE):
-            for c in range(SIZE):
-                if my_piece(self.board[r, c]):
-                    pieces.append((self.board[r, c], r, c))
+        return [ x for x in self.piece_set if my_piece(x[0]) ]
 
-        return pieces
+        # pieces = []
+
+
+
+        # for r in range(SIZE):
+        #     for c in range(SIZE):
+        #         if my_piece(self.board[r, c]):
+        #             pieces.append((self.board[r, c], r, c))
+
+        # return pieces
 
     def _get_sliding_dests(self, r : int, c : int, player: str, steps : Sequence[Tuple[int, int]], max_steps=SIZE) -> Sequence[Tuple[int, int]]:
         """Expand a list of "step" directions into a list of possible destinations for the piece"""
@@ -254,6 +273,12 @@ class ChessBoard(object):
         self.board[move.r_to, move.c_to] = piece
         self.turn = self.next_turn()
 
+        # update piece set datastructure
+        self.piece_set.remove((piece, move.r_from, move.c_from))
+        if captured != ".":
+            self.piece_set.remove((captured, move.r_to, move.c_to))
+        self.piece_set.add((piece, move.r_to, move.c_to))
+
         # save move
         move.captured = captured
         move.piece = piece
@@ -268,6 +293,12 @@ class ChessBoard(object):
         self.board[move.r_from, move.c_from] = piece
         self.board[move.r_to, move.c_to] = captured
         self.turn = self.next_turn()
+
+        # update piece set datastructure
+        self.piece_set.add((piece, move.r_from, move.c_from))
+        if captured != ".":
+            self.piece_set.add((captured, move.r_to, move.c_to))
+        self.piece_set.remove((piece, move.r_to, move.c_to))
 
     def print_move(self, move: Move):
         """Graphically represents a move"""
@@ -408,15 +439,9 @@ def eval_chess_board(board: ChessBoard) -> float:
 
     # just using piece table score + base values
     piece_table = _get_piece_tables()
-    table_score = 0
-    # TODO? store piece list in board for faster access?
-    for r in range(SIZE):
-        for c in range(SIZE):
-            p = board.board[r,c]
-            if p != ".":
-                table_score += piece_table[p][r,c]
 
-    score = table_score
+    score = sum(piece_table[p][r,c] for p, r, c in board.piece_set)
+
     game_over = "k" not in board.board or "K" not in board.board
 
     return (score, game_over)
@@ -488,9 +513,16 @@ def play(white="human", black="computer"):
         b.do_move(move)
         b.print_move(move)
 
+def time_test():
+    """Time a move search"""
+    b = ChessBoard()
+    import time
+    t0 = time.time()
+    _, move = minmax(b, eval_chess_board, 4)
+    t1 = time.time()
+    print(t1 - t0)
 
 if __name__ == "__main__":
     from tictactoe import minmax
-    # play()
-    b = ChessBoard()
-    _, move = minmax(b, eval_chess_board, 5)
+    # time_test()
+    play(white="computer", black="computer")

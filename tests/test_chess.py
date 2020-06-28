@@ -74,6 +74,7 @@ def test_dest_bugs():
         "P P P B B P P P".split(),
         "R . . . K . . R".split(),
     ))
+    b._reset_piece_set()
     dests = b.get_dests_for_piece(4, 1)
     expected = np.array((
         (0, 0, 0, 0, 0, 0, 0, 0),
@@ -399,6 +400,7 @@ def test_moves_simple():
     b = ChessBoard()
     b.clear_pieces()
     b.board[3,3] = "P"
+    b._reset_piece_set()
 
     moves = b.moves()
     print(moves[0])
@@ -437,6 +439,7 @@ def test_perft_moves():
         "P P P B B P P P".split(),
         "R . . . K . . R".split(),
     ))
+    b._reset_piece_set()
     moves = b.moves()
     # for move in moves:
     #     b.print_move(move)
@@ -459,6 +462,7 @@ def test_eval_chess_board():
     b.set_pieces()
     b.board[6,4] = "."  # advance king's pawn
     b.board[5,4] = "P"
+    b._reset_piece_set()
     score, over = eval_chess_board(b)
     assert over == False
     assert score > 0, "first move should increase score"
@@ -472,6 +476,7 @@ def test_minmax_1():
     b.board[1,4] = "k"
     b.board[2,4] = "Q"  # best move for black is to take the queen
     b.board[7,4] = "K"
+    b._reset_piece_set()
 
     _, move = minmax(b, eval_chess_board, 1)
     expected = Move(1,4, 2,4, piece="k", captured="Q")
@@ -497,6 +502,7 @@ def test_minmax_2():
         "P P . . . P P P".split(),
         "R . B Q K B N R".split(),
     ))
+    b._reset_piece_set()
 
     _, move = minmax(b, eval_chess_board, 1)
     expected = Move(7,2, 3,6)
@@ -521,6 +527,7 @@ def test_minmax_3():
         ". . p . . P P .".split(),
         "R . . . . . . .".split(),  # rook to H1, mate
     ))
+    b._reset_piece_set()
 
     _, move = minmax(b, eval_chess_board, 3)
     b.print_move(move)
@@ -539,6 +546,7 @@ def test_minmax_3():
         "P P P . . P P P".split(),  # fork the king and rook!
         "R N B . K B . R".split(),
     ))
+    b._reset_piece_set()
 
     _, move = minmax(b, eval_chess_board, 3)
     b.print_move(move)
