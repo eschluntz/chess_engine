@@ -13,6 +13,12 @@ WHITE_PIECES = ["P", "R", "N", "B", "K", "Q"]
 BLACK_PIECES = [ p.lower() for p in WHITE_PIECES ]
 ALL_PIECES = WHITE_PIECES + BLACK_PIECES
 
+
+def inbound(r, c):
+    """Checks if coords are in the board"""
+    return 0 <= r < SIZE and 0 <= c < SIZE
+
+
 class Move(object):
     """Class to represent a move.
     TODO: handle castles and promotions"""
@@ -102,6 +108,82 @@ class ChessBoard(object):
 
         return pieces
 
+    def get_sliding_dests(self, r : int, c : int, player: str, steps : Sequence[Tuple[int, int]], max_steps=SIZE) -> Sequence[Tuple[int, int]]:
+        """Expand a list of "step" directions into a list of possible destinations for the piece"""
+        if player == "black":
+            my_piece = str.islower
+            other_piece = str.isupper
+        else:
+            my_piece = str.isupper
+            other_piece = str.islower
+
+        dests = []
+        for dr, dc in steps:
+            for i in range(1, max_steps + 1):
+                r2, c2 = r + i * dr, c + i * dc  # slide along step direction
+                if not inbound(r2, c2):
+                    break
+                elif my_piece(self.board[r2, c2]):
+                    break
+                elif other_piece(self.board[r2, c2]):
+                    dests.append((r2, c2))
+                    break
+                else:  # empty square, don't break the search
+                    dests.append((r2, c2))
+        return dests
+
+    def get_jumping_dests(self, r : int, c : int, player : str, jumps : Sequence[Tuple[int, int]]) -> Sequence[Tuple[int, int]]:
+        """Filter a list of jumping destinations and return the valid ones"""
+        if player == "black":
+            my_piece = str.islower
+            other_piece = str.isupper
+        else:
+            my_piece = str.isupper
+            other_piece = str.islower
+
+        dests = []
+        for dr, dc in jumps:
+            r2, c2 = r + dr, c + dc
+            if inbound(r2, c2):
+                if not my_piece(self.board[r2, c2]):
+                    dests.append((r2, c2))
+        return dests
+
+    def get_pawn_dests(self, r : int, c : int, player : str):
+        """pawns are actually the most complex pieces on the board! Their moves:
+        1. are asymmetric, 2. depend on their position, 3. depends on opponents 4. moves do not equal captures
+        TODO: implement promoting"""
+
+        if player == "black":
+            my_piece = str.islower
+            other_piece = str.isupper
+        else:
+            my_piece = str.isupper
+            other_piece = str.islower
+
+        pawn_jumps = []
+        if player == "white":
+            r2, c2 = r - 1, c
+            if inbound(r2, c2) and self.board[r2, c2] == ".":  # jump forward if clear
+                pawn_jumps.append((-1, 0))
+                if r == 6 and self.board[r - 2, c] == ".":  # double jump if not blocked and on home row
+                    pawn_jumps.append((-2, 0))
+            for dc in [-1, 1]:  # captures
+                r2, c2 = r - 1, c + dc
+                if inbound(r2, c2) and self.board[r2, c2].islower():
+                    pawn_jumps.append((-1, dc))
+        else:  # black
+            r2, c2 = r +1, c
+            if inbound(r2, c2) and self.board[r2, c2] == ".":  # jump forward if clear
+                pawn_jumps.append((1, 0))
+                if r == 1 and self.board[r + 2, c] == ".":  # double jump if not blocked and on home row
+                    pawn_jumps.append((2, 0))
+            for dc in [-1, 1]:  # captures
+                r2, c2 = r + 1, c + dc
+                if inbound(r2, c2) and self.board[r2, c2].isupper():
+                    pawn_jumps.append((1, dc))
+        return self.get_jumping_dests(r, c, player, pawn_jumps)
+
     def get_dests_for_piece(self, r : int, c : int, piece=None) -> Sequence[Tuple[int, int]]:
         """Given a particular piece, generates all possible destinatinos for it to move to.
         piece: optional param to override piece at board location
@@ -109,72 +191,11 @@ class ChessBoard(object):
         Returns [(r,c),...]. """
 
         if piece is None:
-            piece : str = self.board[r, c]
+            piece = self.board[r, c]
         if piece.islower():
-            my_piece = str.islower
-            other_piece = str.isupper
+            player = "black"
         else:
-            my_piece = str.isupper
-            other_piece = str.islower
-
-        def inbound(r, c):
-            """Checks if coords are in the board"""
-            return 0 <= r <= 7 and 0 <= c <= 7
-
-        def get_sliding_dests(steps : Sequence[Tuple[int, int]], max_steps=SIZE) -> Sequence[Tuple[int, int]]:
-            """Expand a list of "step" directions into a list of possible destinations for the piece"""
-            dests = []
-            for dr, dc in steps:
-                for i in range(1, max_steps + 1):
-                    r2, c2 = r + i * dr, c + i * dc  # slide along step direction
-                    if not inbound(r2, c2):
-                        break
-                    elif my_piece(self.board[r2, c2]):
-                        break
-                    elif other_piece(self.board[r2, c2]):
-                        dests.append((r2, c2))
-                        break
-                    else:  # empty square, don't break the search
-                        dests.append((r2, c2))
-            return dests
-
-        def get_jumping_dests(jumps : Sequence[Tuple[int, int]]) -> Sequence[Tuple[int, int]]:
-            """Filter a list of jumping destinations and return the valid ones"""
-            dests = []
-            for dr, dc in jumps:
-                r2, c2 = r + dr, c + dc
-                if inbound(r2, c2):
-                    if not my_piece(self.board[r2, c2]):
-                        dests.append((r2, c2))
-            return dests
-
-        def get_pawn_dests():
-            """pawns are actually the most complex pieces on the board! Their moves:
-            1. are asymmetric, 2. depend on their position, 3. depends on opponents 4. moves do not equal captures
-            TODO: implement promoting
-            TODO: clean up to be less repetitive?"""
-            pawn_jumps = []
-            if piece.isupper():  # white
-                r2, c2 = r - 1, c
-                if inbound(r2, c2) and self.board[r2, c2] == ".":  # jump forward if clear
-                    pawn_jumps.append((-1, 0))
-                    if r == 6 and self.board[r - 2, c] == ".":  # double jump if not blocked and on home row
-                        pawn_jumps.append((-2, 0))
-                for dc in [-1, 1]:  # captures
-                    r2, c2 = r - 1, c + dc
-                    if inbound(r2, c2) and self.board[r2, c2].islower():
-                        pawn_jumps.append((-1, dc))
-            else:  # black
-                r2, c2 = r +1, c
-                if inbound(r2, c2) and self.board[r2, c2] == ".":  # jump forward if clear
-                    pawn_jumps.append((1, 0))
-                    if r == 1 and self.board[r + 2, c] == ".":  # double jump if not blocked and on home row
-                        pawn_jumps.append((2, 0))
-                for dc in [-1, 1]:  # captures
-                    r2, c2 = r + 1, c + dc
-                    if inbound(r2, c2) and self.board[r2, c2].isupper():
-                        pawn_jumps.append((1, dc))
-            return get_jumping_dests(pawn_jumps)
+            player = "white"
 
         # piece delta movements
         knight_jumps = [(1, 2), (1, -2), (2, 1), (2, -1), (-1, 2), (-1, -2), (-2, 1), (-2, -1)]
@@ -185,17 +206,17 @@ class ChessBoard(object):
 
         piece_type = piece.lower()
         if piece_type == "p":
-            destinations = get_pawn_dests()
+            destinations = self.get_pawn_dests(r, c, player)
         elif piece_type == "r":
-            destinations = get_sliding_dests(rook_steps)
+            destinations = self.get_sliding_dests(r, c, player, rook_steps)
         elif piece_type == "n":
-            destinations = get_jumping_dests(knight_jumps)
+            destinations = self.get_jumping_dests(r, c, player, knight_jumps)
         elif piece_type == 'b':
-            destinations = get_sliding_dests(bishop_steps)
+            destinations = self.get_sliding_dests(r, c, player, bishop_steps)
         elif piece_type == 'q':
-            destinations = get_sliding_dests(queen_steps)
+            destinations = self.get_sliding_dests(r, c, player, queen_steps)
         elif piece_type == "k":
-            destinations = get_jumping_dests(king_jumps)
+            destinations = self.get_jumping_dests(r, c, player, king_jumps)
         else:
             raise ValueError("Unknown piece! {}".format(piece))
 
@@ -287,7 +308,7 @@ def _get_piece_tables() -> Dict:
         (5, 10, 10,-20,-20, 10, 10,  5),
         (0,  0,  0,  0,  0,  0,  0,  0),
     ))
-    piece_table["N"]  = np.array((
+    piece_table["N"] = np.array((
         (-50,-40,-30,-30,-30,-30,-40,-50),
         (-40,-20,  0,  0,  0,  0,-20,-40),
         (-30,  0, 10, 15, 15, 10,  0,-30),
@@ -297,7 +318,7 @@ def _get_piece_tables() -> Dict:
         (-40,-20,  0,  5,  5,  0,-20,-40),
         (-50,-40,-30,-30,-30,-30,-40,-50),
     ))
-    piece_table["B"]  = np.array((
+    piece_table["B"] = np.array((
         (-20,-10,-10,-10,-10,-10,-10,-20),
         (-10,  0,  0,  0,  0,  0,  0,-10),
         (-10,  0,  5, 10, 10,  5,  0,-10),
@@ -307,7 +328,7 @@ def _get_piece_tables() -> Dict:
         (-10,  5,  0,  0,  0,  0,  5,-10),
         (-20,-10,-10,-10,-10,-10,-10,-20),
     ))
-    piece_table["R"]  = np.array((
+    piece_table["R"] = np.array((
         ( 0,  0,  0,  0,  0,  0,  0,  0),
         ( 5, 10, 10, 10, 10, 10, 10,  5),
         (-5,  0,  0,  0,  0,  0,  0, -5),
@@ -317,7 +338,7 @@ def _get_piece_tables() -> Dict:
         (-5,  0,  0,  0,  0,  0,  0, -5),
         ( 0,  0,  0,  5,  5,  0,  0,  0),
     ))
-    piece_table["Q"]  = np.array((
+    piece_table["Q"] = np.array((
         (-20,-10,-10, -5, -5,-10,-10,-20),
         (-10,  0,  0,  0,  0,  0,  0,-10),
         (-10,  0,  5,  5,  5,  5,  0,-10),
@@ -327,7 +348,7 @@ def _get_piece_tables() -> Dict:
         (-10,  0,  5,  0,  0,  0,  0,-10),
         (-20,-10,-10, -5, -5,-10,-10,-20),
     ))
-    piece_table["K"]  = np.array((
+    piece_table["K"] = np.array((
         (-30,-40,-40,-50,-50,-40,-40,-30),
         (-30,-40,-40,-50,-50,-40,-40,-30),
         (-30,-40,-40,-50,-50,-40,-40,-30),
@@ -337,17 +358,23 @@ def _get_piece_tables() -> Dict:
         ( 20, 20,  0,  0,  0,  0, 20, 20),
         ( 20, 30, 10,  0,  0, 10, 30, 20),
     ))
+    piece_table["."] = np.array((
+        (  0,  0,  0,  0,  0,  0,  0,  0),
+        (  0,  0,  0,  0,  0,  0,  0,  0),
+        (  0,  0,  0,  0,  0,  0,  0,  0),
+        (  0,  0,  0,  0,  0,  0,  0,  0),
+        (  0,  0,  0,  0,  0,  0,  0,  0),
+        (  0,  0,  0,  0,  0,  0,  0,  0),
+        (  0,  0,  0,  0,  0,  0,  0,  0),
+        (  0,  0,  0,  0,  0,  0,  0,  0),
+    ))
 
     # fill in black piece table. Flip and negate values
     for p in list(piece_table.keys()):  # cast to list to allow iterating over original keys
         piece_table[p.lower()] = -np.flip(piece_table[p])
 
-    _PIECE_TABLE = piece_table
-    return piece_table
-
-
-def _get_material_score(board: ChessBoard) -> int:
-    """Adds up material values and returns partial board score"""
+    # add base piece values
+    # add piece values
     values = {
         "K": 20000,
         "k": -20000,
@@ -363,26 +390,11 @@ def _get_material_score(board: ChessBoard) -> int:
         "p":-100,
         ".": 0
     }
-    return np.sum(np.vectorize(values.__getitem__)(board.board))
+    for p, v in values.items():
+        piece_table[p] += v
 
-
-def _get_mobility_score(board: ChessBoard) -> int:
-    """Adds up a score for available moves for each team"""
-    MOVE_VALUE = 0.1
-    white_moves = len(board.moves("white"))
-    black_moves = len(board.moves("black"))
-    return MOVE_VALUE * (white_moves - black_moves)
-
-
-def _get_piece_table_score(board :ChessBoard) -> int:
-    """Calculates position scores based on piece tables.
-    source: https://www.chessprogramming.org/Simplified_Evaluation_Function"""
-    piece_table = _get_piece_tables()
-    table_score = 0
-    for p in ALL_PIECES:
-        table_score += np.sum((board.board == p) * piece_table[p])
-    return table_score
-
+    _PIECE_TABLE = piece_table
+    return piece_table
 
 def eval_chess_board(board: ChessBoard) -> float:
     """Evaluates a ChessBoard.
@@ -394,11 +406,18 @@ def eval_chess_board(board: ChessBoard) -> float:
 
     Tons of good heuristics here: https://www.chessprogramming.org/Evaluation
     """
-    material_score = _get_material_score(board)
-    mobility_score = _get_mobility_score(board)
-    table_score = _get_piece_table_score(board)
 
-    score = material_score + mobility_score + table_score
+    # just using piece table score + base values
+    piece_table = _get_piece_tables()
+    table_score = 0
+    # TODO? store piece list in board for faster access?
+    for r in range(SIZE):
+        for c in range(SIZE):
+            p = board.board[r,c]
+            if p != ".":
+                table_score += piece_table[p][r,c]
+
+    score = table_score
     game_over = "k" not in board.board or "K" not in board.board
 
     return (score, game_over)
@@ -456,11 +475,6 @@ def get_user_move(board: ChessBoard):
     return move
 
 
-
-
-
-
-
 def play(white="human", black="computer"):
     """Play a game of chess"""
     b = ChessBoard()
@@ -478,4 +492,6 @@ def play(white="human", black="computer"):
 
 if __name__ == "__main__":
     from tictactoe import minmax
-    play()
+    # play()
+    b = ChessBoard()
+    _, move = minmax(b, eval_chess_board, 5)
