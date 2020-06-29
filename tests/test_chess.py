@@ -21,22 +21,25 @@ import games
 def test_setup_and_print():
     b = ChessBoard()
     out = str(b)
-    expected = ('r n b q k b n r\np p p p p p p p\n'
-    '. . . . . . . .\n. . . . . . . .\n. . . . . . . .\n. . . . . . . .\n'
-    'P P P P P P P P\nR N B Q K B N R\n')
+    expected = (
+        "r n b q k b n r\np p p p p p p p\n"
+        ". . . . . . . .\n. . . . . . . .\n. . . . . . . .\n. . . . . . . .\n"
+        "P P P P P P P P\nR N B Q K B N R\n"
+    )
     assert out == expected
+
 
 def test_empty_pawn_dests():
     b = ChessBoard()
     b.clear_pieces()
 
     for c in range(8):
-        assert {(5,c), (4,c)} == set(b.get_dests_for_piece(6, c, piece="P"))
-        assert {(2,c)} == set(b.get_dests_for_piece(3, c, piece="P"))
+        assert {(5, c), (4, c)} == set(b.get_dests_for_piece(6, c, piece="P"))
+        assert {(2, c)} == set(b.get_dests_for_piece(3, c, piece="P"))
 
         # flipped
-        assert {(2,c), (3,c)} == set(b.get_dests_for_piece(1, c, piece="p"))
-        assert {(4,c)} == set(b.get_dests_for_piece(3, c, piece="p"))
+        assert {(2, c), (3, c)} == set(b.get_dests_for_piece(1, c, piece="p"))
+        assert {(4, c)} == set(b.get_dests_for_piece(3, c, piece="p"))
 
 
 def test_starting_dests():
@@ -54,129 +57,153 @@ def test_starting_dests():
 
     # test knights
     dests = b.get_dests_for_piece(0, 1, piece="n")
-    expected = {(2,0), (2,2)}
+    expected = {(2, 0), (2, 2)}
     assert set(dests) == expected
 
     dests = b.get_dests_for_piece(7, 6, piece="N")
-    expected = {(5,7), (5,5)}
+    expected = {(5, 7), (5, 5)}
     assert set(dests) == expected
 
 
 def test_dest_bugs():
     b = ChessBoard()
-    b.board = np.array((
-        "r . . . k . . r".split(),
-        "p . p p q p b .".split(),
-        "b n . . p n p .".split(),
-        ". . . P N . . .".split(),
-        ". p . . P . . .".split(),
-        ". . N . . Q . p".split(),
-        "P P P B B P P P".split(),
-        "R . . . K . . R".split(),
-    ))
+    b.board = np.array(
+        (
+            "r . . . k . . r".split(),
+            "p . p p q p b .".split(),
+            "b n . . p n p .".split(),
+            ". . . P N . . .".split(),
+            ". p . . P . . .".split(),
+            ". . N . . Q . p".split(),
+            "P P P B B P P P".split(),
+            "R . . . K . . R".split(),
+        )
+    )
     b._reset_piece_set()
     dests = b.get_dests_for_piece(4, 1)
-    expected = np.array((
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 1, 1, 0, 0, 0, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-    ))
+    expected = np.array(
+        (
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 1, 1, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+        )
+    )
     dests_board = b.dests_to_array(dests)
     assert np.all(dests_board == expected), "Test: Pawn bug from perft 1"
 
 
 def test_surrounded():
     b = ChessBoard()
-    b.board = np.array((
-        ". . . . . . . .".split(),
-        ". . p p . . . .".split(),
-        ". . p . p p . .".split(),
-        ". . p . Q p . .".split(),
-        ". . p . . p . .".split(),
-        ". . p p p . . .".split(),
-        ". . . . . . . .".split(),
-        ". . . . . . . .".split(),
-    ))
+    b.board = np.array(
+        (
+            ". . . . . . . .".split(),
+            ". . p p . . . .".split(),
+            ". . p . p p . .".split(),
+            ". . p . Q p . .".split(),
+            ". . p . . p . .".split(),
+            ". . p p p . . .".split(),
+            ". . . . . . . .".split(),
+            ". . . . . . . .".split(),
+        )
+    )
 
     set1 = (3, 4, "P")
-    expected1 = np.array((
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 0, 0, 0, 1, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-    ))
+    expected1 = np.array(
+        (
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 1, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+        )
+    )
 
     set2 = (3, 4, "R")
-    expected2 = np.array((
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 0, 0, 1, 0, 0, 0),
-        (0, 0, 1, 1, 0, 1, 0, 0),
-        (0, 0, 0, 0, 1, 0, 0, 0),
-        (0, 0, 0, 0, 1, 0, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-    ))
+    expected2 = np.array(
+        (
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 1, 0, 0, 0),
+            (0, 0, 1, 1, 0, 1, 0, 0),
+            (0, 0, 0, 0, 1, 0, 0, 0),
+            (0, 0, 0, 0, 1, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+        )
+    )
 
     set3 = (3, 4, "N")
-    expected3 = np.array((
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 0, 1, 0, 1, 0, 0),
-        (0, 0, 1, 0, 0, 0, 1, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 1, 0, 0, 0, 1, 0),
-        (0, 0, 0, 1, 0, 1, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-    ))
+    expected3 = np.array(
+        (
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 1, 0, 1, 0, 0),
+            (0, 0, 1, 0, 0, 0, 1, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 1, 0, 0, 0, 1, 0),
+            (0, 0, 0, 1, 0, 1, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+        )
+    )
 
     set4 = (3, 4, "B")
-    expected4 = np.array((
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 1, 0, 0, 0, 0, 0),
-        (0, 0, 0, 1, 0, 1, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 0, 1, 0, 1, 0, 0),
-        (0, 0, 1, 0, 0, 0, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-    ))
+    expected4 = np.array(
+        (
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 1, 0, 0, 0, 0, 0),
+            (0, 0, 0, 1, 0, 1, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 1, 0, 1, 0, 0),
+            (0, 0, 1, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+        )
+    )
 
     set5 = (3, 4, "Q")
-    expected5 = np.array((
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 1, 0, 0, 0, 0, 0),
-        (0, 0, 0, 1, 1, 1, 0, 0),
-        (0, 0, 1, 1, 0, 1, 0, 0),
-        (0, 0, 0, 1, 1, 1, 0, 0),
-        (0, 0, 1, 0, 1, 0, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-    ))
+    expected5 = np.array(
+        (
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 1, 0, 0, 0, 0, 0),
+            (0, 0, 0, 1, 1, 1, 0, 0),
+            (0, 0, 1, 1, 0, 1, 0, 0),
+            (0, 0, 0, 1, 1, 1, 0, 0),
+            (0, 0, 1, 0, 1, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+        )
+    )
 
     set6 = (3, 4, "K")
-    expected6 = np.array((
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 0, 1, 1, 1, 0, 0),
-        (0, 0, 0, 1, 0, 1, 0, 0),
-        (0, 0, 0, 1, 1, 1, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 0, 0, 0, 0, 0, 0),
-    ))
+    expected6 = np.array(
+        (
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 1, 1, 1, 0, 0),
+            (0, 0, 0, 1, 0, 1, 0, 0),
+            (0, 0, 0, 1, 1, 1, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+        )
+    )
 
-    tests = [(set1, expected1), (set2, expected2), (set3, expected3),
-        (set4, expected4), (set5, expected5), (set6, expected6), ]
+    tests = [
+        (set1, expected1),
+        (set2, expected2),
+        (set3, expected3),
+        (set4, expected4),
+        (set5, expected5),
+        (set6, expected6),
+    ]
     for (r, c, p), expected in tests:
         dests = b.get_dests_for_piece(r, c, p)
         dests_board = b.dests_to_array(dests)
@@ -189,40 +216,46 @@ def test_empty_king_dests():
 
     for k in ["k", "K"]:  # player should not affect dests
         start1 = (3, 5)
-        expected1 = np.array((
-            (0, 0, 0, 0, 0, 0, 0, 0),
-            (0, 0, 0, 0, 0, 0, 0, 0),
-            (0, 0, 0, 0, 1, 1, 1, 0),
-            (0, 0, 0, 0, 1, 0, 1, 0),
-            (0, 0, 0, 0, 1, 1, 1, 0),
-            (0, 0, 0, 0, 0, 0, 0, 0),
-            (0, 0, 0, 0, 0, 0, 0, 0),
-            (0, 0, 0, 0, 0, 0, 0, 0),
-        ))
+        expected1 = np.array(
+            (
+                (0, 0, 0, 0, 0, 0, 0, 0),
+                (0, 0, 0, 0, 0, 0, 0, 0),
+                (0, 0, 0, 0, 1, 1, 1, 0),
+                (0, 0, 0, 0, 1, 0, 1, 0),
+                (0, 0, 0, 0, 1, 1, 1, 0),
+                (0, 0, 0, 0, 0, 0, 0, 0),
+                (0, 0, 0, 0, 0, 0, 0, 0),
+                (0, 0, 0, 0, 0, 0, 0, 0),
+            )
+        )
 
         start2 = (0, 0)
-        expected2 = np.array((
-            (0, 1, 0, 0, 0, 0, 0, 0),
-            (1, 1, 0, 0, 0, 0, 0, 0),
-            (0, 0, 0, 0, 0, 0, 0, 0),
-            (0, 0, 0, 0, 0, 0, 0, 0),
-            (0, 0, 0, 0, 0, 0, 0, 0),
-            (0, 0, 0, 0, 0, 0, 0, 0),
-            (0, 0, 0, 0, 0, 0, 0, 0),
-            (0, 0, 0, 0, 0, 0, 0, 0),
-        ))
+        expected2 = np.array(
+            (
+                (0, 1, 0, 0, 0, 0, 0, 0),
+                (1, 1, 0, 0, 0, 0, 0, 0),
+                (0, 0, 0, 0, 0, 0, 0, 0),
+                (0, 0, 0, 0, 0, 0, 0, 0),
+                (0, 0, 0, 0, 0, 0, 0, 0),
+                (0, 0, 0, 0, 0, 0, 0, 0),
+                (0, 0, 0, 0, 0, 0, 0, 0),
+                (0, 0, 0, 0, 0, 0, 0, 0),
+            )
+        )
 
         start3 = (1, 7)
-        expected3 = np.array((
-            (0, 0, 0, 0, 0, 0, 1, 1),
-            (0, 0, 0, 0, 0, 0, 1, 0),
-            (0, 0, 0, 0, 0, 0, 1, 1),
-            (0, 0, 0, 0, 0, 0, 0, 0),
-            (0, 0, 0, 0, 0, 0, 0, 0),
-            (0, 0, 0, 0, 0, 0, 0, 0),
-            (0, 0, 0, 0, 0, 0, 0, 0),
-            (0, 0, 0, 0, 0, 0, 0, 0),
-        ))
+        expected3 = np.array(
+            (
+                (0, 0, 0, 0, 0, 0, 1, 1),
+                (0, 0, 0, 0, 0, 0, 1, 0),
+                (0, 0, 0, 0, 0, 0, 1, 1),
+                (0, 0, 0, 0, 0, 0, 0, 0),
+                (0, 0, 0, 0, 0, 0, 0, 0),
+                (0, 0, 0, 0, 0, 0, 0, 0),
+                (0, 0, 0, 0, 0, 0, 0, 0),
+                (0, 0, 0, 0, 0, 0, 0, 0),
+            )
+        )
 
         tests = [(start1, expected1), (start2, expected2), (start3, expected3)]
         for (r, c), expected in tests:
@@ -239,28 +272,32 @@ def test_empty_rook_dests():
 
     for p in ["r", "R"]:  # player should not affect dests
         start1 = (3, 5)
-        expected1 = np.array((
-            (0, 0, 0, 0, 0, 1, 0, 0),
-            (0, 0, 0, 0, 0, 1, 0, 0),
-            (0, 0, 0, 0, 0, 1, 0, 0),
-            (1, 1, 1, 1, 1, 0, 1, 1),
-            (0, 0, 0, 0, 0, 1, 0, 0),
-            (0, 0, 0, 0, 0, 1, 0, 0),
-            (0, 0, 0, 0, 0, 1, 0, 0),
-            (0, 0, 0, 0, 0, 1, 0, 0),
-        ))
+        expected1 = np.array(
+            (
+                (0, 0, 0, 0, 0, 1, 0, 0),
+                (0, 0, 0, 0, 0, 1, 0, 0),
+                (0, 0, 0, 0, 0, 1, 0, 0),
+                (1, 1, 1, 1, 1, 0, 1, 1),
+                (0, 0, 0, 0, 0, 1, 0, 0),
+                (0, 0, 0, 0, 0, 1, 0, 0),
+                (0, 0, 0, 0, 0, 1, 0, 0),
+                (0, 0, 0, 0, 0, 1, 0, 0),
+            )
+        )
 
         start2 = (0, 0)
-        expected2 = np.array((
-            (0, 1, 1, 1, 1, 1, 1, 1),
-            (1, 0, 0, 0, 0, 0, 0, 0),
-            (1, 0, 0, 0, 0, 0, 0, 0),
-            (1, 0, 0, 0, 0, 0, 0, 0),
-            (1, 0, 0, 0, 0, 0, 0, 0),
-            (1, 0, 0, 0, 0, 0, 0, 0),
-            (1, 0, 0, 0, 0, 0, 0, 0),
-            (1, 0, 0, 0, 0, 0, 0, 0),
-        ))
+        expected2 = np.array(
+            (
+                (0, 1, 1, 1, 1, 1, 1, 1),
+                (1, 0, 0, 0, 0, 0, 0, 0),
+                (1, 0, 0, 0, 0, 0, 0, 0),
+                (1, 0, 0, 0, 0, 0, 0, 0),
+                (1, 0, 0, 0, 0, 0, 0, 0),
+                (1, 0, 0, 0, 0, 0, 0, 0),
+                (1, 0, 0, 0, 0, 0, 0, 0),
+                (1, 0, 0, 0, 0, 0, 0, 0),
+            )
+        )
 
         tests = [(start1, expected1), (start2, expected2)]
         for (r, c), expected in tests:
@@ -275,28 +312,32 @@ def test_empty_knight_dests():
 
     for p in ["n", "N"]:  # player should not affect dests
         start1 = (3, 5)
-        expected1 = np.array((
-            (0, 0, 0, 0, 0, 0, 0, 0),
-            (0, 0, 0, 0, 1, 0, 1, 0),
-            (0, 0, 0, 1, 0, 0, 0, 1),
-            (0, 0, 0, 0, 0, 0, 0, 0),
-            (0, 0, 0, 1, 0, 0, 0, 1),
-            (0, 0, 0, 0, 1, 0, 1, 0),
-            (0, 0, 0, 0, 0, 0, 0, 0),
-            (0, 0, 0, 0, 0, 0, 0, 0),
-        ))
+        expected1 = np.array(
+            (
+                (0, 0, 0, 0, 0, 0, 0, 0),
+                (0, 0, 0, 0, 1, 0, 1, 0),
+                (0, 0, 0, 1, 0, 0, 0, 1),
+                (0, 0, 0, 0, 0, 0, 0, 0),
+                (0, 0, 0, 1, 0, 0, 0, 1),
+                (0, 0, 0, 0, 1, 0, 1, 0),
+                (0, 0, 0, 0, 0, 0, 0, 0),
+                (0, 0, 0, 0, 0, 0, 0, 0),
+            )
+        )
 
         start2 = (0, 0)
-        expected2 = np.array((
-            (0, 0, 0, 0, 0, 0, 0, 0),
-            (0, 0, 1, 0, 0, 0, 0, 0),
-            (0, 1, 0, 0, 0, 0, 0, 0),
-            (0, 0, 0, 0, 0, 0, 0, 0),
-            (0, 0, 0, 0, 0, 0, 0, 0),
-            (0, 0, 0, 0, 0, 0, 0, 0),
-            (0, 0, 0, 0, 0, 0, 0, 0),
-            (0, 0, 0, 0, 0, 0, 0, 0),
-        ))
+        expected2 = np.array(
+            (
+                (0, 0, 0, 0, 0, 0, 0, 0),
+                (0, 0, 1, 0, 0, 0, 0, 0),
+                (0, 1, 0, 0, 0, 0, 0, 0),
+                (0, 0, 0, 0, 0, 0, 0, 0),
+                (0, 0, 0, 0, 0, 0, 0, 0),
+                (0, 0, 0, 0, 0, 0, 0, 0),
+                (0, 0, 0, 0, 0, 0, 0, 0),
+                (0, 0, 0, 0, 0, 0, 0, 0),
+            )
+        )
 
         tests = [(start1, expected1), (start2, expected2)]
         for (r, c), expected in tests:
@@ -311,28 +352,32 @@ def test_empty_bishop_dests():
 
     for p in ["b", "B"]:  # player should not affect dests
         start1 = (3, 5)
-        expected1 = np.array((
-            (0, 0, 1, 0, 0, 0, 0, 0),
-            (0, 0, 0, 1, 0, 0, 0, 1),
-            (0, 0, 0, 0, 1, 0, 1, 0),
-            (0, 0, 0, 0, 0, 0, 0, 0),
-            (0, 0, 0, 0, 1, 0, 1, 0),
-            (0, 0, 0, 1, 0, 0, 0, 1),
-            (0, 0, 1, 0, 0, 0, 0, 0),
-            (0, 1, 0, 0, 0, 0, 0, 0),
-        ))
+        expected1 = np.array(
+            (
+                (0, 0, 1, 0, 0, 0, 0, 0),
+                (0, 0, 0, 1, 0, 0, 0, 1),
+                (0, 0, 0, 0, 1, 0, 1, 0),
+                (0, 0, 0, 0, 0, 0, 0, 0),
+                (0, 0, 0, 0, 1, 0, 1, 0),
+                (0, 0, 0, 1, 0, 0, 0, 1),
+                (0, 0, 1, 0, 0, 0, 0, 0),
+                (0, 1, 0, 0, 0, 0, 0, 0),
+            )
+        )
 
         start2 = (0, 0)
-        expected2 = np.array((
-            (0, 0, 0, 0, 0, 0, 0, 0),
-            (0, 1, 0, 0, 0, 0, 0, 0),
-            (0, 0, 1, 0, 0, 0, 0, 0),
-            (0, 0, 0, 1, 0, 0, 0, 0),
-            (0, 0, 0, 0, 1, 0, 0, 0),
-            (0, 0, 0, 0, 0, 1, 0, 0),
-            (0, 0, 0, 0, 0, 0, 1, 0),
-            (0, 0, 0, 0, 0, 0, 0, 1),
-        ))
+        expected2 = np.array(
+            (
+                (0, 0, 0, 0, 0, 0, 0, 0),
+                (0, 1, 0, 0, 0, 0, 0, 0),
+                (0, 0, 1, 0, 0, 0, 0, 0),
+                (0, 0, 0, 1, 0, 0, 0, 0),
+                (0, 0, 0, 0, 1, 0, 0, 0),
+                (0, 0, 0, 0, 0, 1, 0, 0),
+                (0, 0, 0, 0, 0, 0, 1, 0),
+                (0, 0, 0, 0, 0, 0, 0, 1),
+            )
+        )
 
         tests = [(start1, expected1), (start2, expected2)]
         for (r, c), expected in tests:
@@ -349,28 +394,32 @@ def test_empty_queen_dests():
 
     for p in ["q", "Q"]:  # player should not affect dests
         start1 = (3, 5)
-        expected1 = np.array((
-            (0, 0, 1, 0, 0, 1, 0, 0),
-            (0, 0, 0, 1, 0, 1, 0, 1),
-            (0, 0, 0, 0, 1, 1, 1, 0),
-            (1, 1, 1, 1, 1, 0, 1, 1),
-            (0, 0, 0, 0, 1, 1, 1, 0),
-            (0, 0, 0, 1, 0, 1, 0, 1),
-            (0, 0, 1, 0, 0, 1, 0, 0),
-            (0, 1, 0, 0, 0, 1, 0, 0),
-        ))
+        expected1 = np.array(
+            (
+                (0, 0, 1, 0, 0, 1, 0, 0),
+                (0, 0, 0, 1, 0, 1, 0, 1),
+                (0, 0, 0, 0, 1, 1, 1, 0),
+                (1, 1, 1, 1, 1, 0, 1, 1),
+                (0, 0, 0, 0, 1, 1, 1, 0),
+                (0, 0, 0, 1, 0, 1, 0, 1),
+                (0, 0, 1, 0, 0, 1, 0, 0),
+                (0, 1, 0, 0, 0, 1, 0, 0),
+            )
+        )
 
         start2 = (0, 0)
-        expected2 = np.array((
-            (0, 1, 1, 1, 1, 1, 1, 1),
-            (1, 1, 0, 0, 0, 0, 0, 0),
-            (1, 0, 1, 0, 0, 0, 0, 0),
-            (1, 0, 0, 1, 0, 0, 0, 0),
-            (1, 0, 0, 0, 1, 0, 0, 0),
-            (1, 0, 0, 0, 0, 1, 0, 0),
-            (1, 0, 0, 0, 0, 0, 1, 0),
-            (1, 0, 0, 0, 0, 0, 0, 1),
-        ))
+        expected2 = np.array(
+            (
+                (0, 1, 1, 1, 1, 1, 1, 1),
+                (1, 1, 0, 0, 0, 0, 0, 0),
+                (1, 0, 1, 0, 0, 0, 0, 0),
+                (1, 0, 0, 1, 0, 0, 0, 0),
+                (1, 0, 0, 0, 1, 0, 0, 0),
+                (1, 0, 0, 0, 0, 1, 0, 0),
+                (1, 0, 0, 0, 0, 0, 1, 0),
+                (1, 0, 0, 0, 0, 0, 0, 1),
+            )
+        )
 
         tests = [(start1, expected1), (start2, expected2)]
         for (r, c), expected in tests:
@@ -384,22 +433,22 @@ def test_find_my_pieces():
 
     # white
     pieces = b.find_my_pieces()
-    coords = set([ (r, c) for _, r, c in pieces])
-    expected_coords = set([ (r, c) for r in [6, 7] for c in range(SIZE) ])
+    coords = set([(r, c) for _, r, c in pieces])
+    expected_coords = set([(r, c) for r in [6, 7] for c in range(SIZE)])
     assert coords == expected_coords
 
     # black
     b.turn = "black"
     pieces = b.find_my_pieces()
-    coords = set([ (r, c) for _, r, c in pieces])
-    expected_coords = set([ (r, c) for r in [0, 1] for c in range(SIZE) ])
+    coords = set([(r, c) for _, r, c in pieces])
+    expected_coords = set([(r, c) for r in [0, 1] for c in range(SIZE)])
     assert coords == expected_coords
 
 
 def test_moves_simple():
     b = ChessBoard()
     b.clear_pieces()
-    b.board[3,3] = "P"
+    b.board[3, 3] = "P"
     b._reset_piece_set()
 
     moves = b.moves()
@@ -429,16 +478,18 @@ def test_perft_moves():
 
     # perft position 2
     b.turn = "white"
-    b.board = np.array((
-        "r . . . k . . r".split(),
-        "p . p p q p b .".split(),
-        "b n . . p n p .".split(),
-        ". . . P N . . .".split(),
-        ". p . . P . . .".split(),
-        ". . N . . Q . p".split(),
-        "P P P B B P P P".split(),
-        "R . . . K . . R".split(),
-    ))
+    b.board = np.array(
+        (
+            "r . . . k . . r".split(),
+            "p . p p q p b .".split(),
+            "b n . . p n p .".split(),
+            ". . . P N . . .".split(),
+            ". p . . P . . .".split(),
+            ". . N . . Q . p".split(),
+            "P P P B B P P P".split(),
+            "R . . . K . . R".split(),
+        )
+    )
     b._reset_piece_set()
     moves = b.moves()
     # for move in moves:
@@ -460,8 +511,8 @@ def test_eval_chess_board():
     assert (0.0, True) == eval_chess_board(b), "empty board test"
 
     b.set_pieces()
-    b.board[6,4] = "."  # advance king's pawn
-    b.board[5,4] = "P"
+    b.board[6, 4] = "."  # advance king's pawn
+    b.board[5, 4] = "P"
     b._reset_piece_set()
     score, over = eval_chess_board(b)
     assert over == False
@@ -473,18 +524,18 @@ def test_minmax_1():
     b = ChessBoard()
     b.clear_pieces()
     b.turn = "black"
-    b.board[1,4] = "k"
-    b.board[2,4] = "Q"  # best move for black is to take the queen
-    b.board[7,4] = "K"
+    b.board[1, 4] = "k"
+    b.board[2, 4] = "Q"  # best move for black is to take the queen
+    b.board[7, 4] = "K"
     b._reset_piece_set()
 
     _, move = minmax(b, eval_chess_board, 1)
-    expected = Move(1,4, 2,4, piece="k", captured="Q")
+    expected = Move(1, 4, 2, 4, piece="k", captured="Q")
     b.print_move(move)
     assert move == expected
 
     _, move = minmax(b, eval_chess_board, 4)
-    expected = Move(1,4, 2,4, piece="k", captured="Q")
+    expected = Move(1, 4, 2, 4, piece="k", captured="Q")
     b.print_move(move)
     assert move == expected
 
@@ -492,24 +543,26 @@ def test_minmax_1():
 def test_minmax_2():
     b = ChessBoard()
     b.turn = "white"
-    b.board = np.array((
-        "r . b . k b . r".split(),
-        "p . p p . p p p".split(),
-        "n . . . p . . n".split(),
-        ". P . . . . q .".split(),  # take the vulnerable queen
-        ". . . P P . . .".split(),
-        "N . . . . . . .".split(),
-        "P P . . . P P P".split(),
-        "R . B Q K B N R".split(),
-    ))
+    b.board = np.array(
+        (
+            "r . b . k b . r".split(),
+            "p . p p . p p p".split(),
+            "n . . . p . . n".split(),
+            ". P . . . . q .".split(),  # take the vulnerable queen
+            ". . . P P . . .".split(),
+            "N . . . . . . .".split(),
+            "P P . . . P P P".split(),
+            "R . B Q K B N R".split(),
+        )
+    )
     b._reset_piece_set()
 
     _, move = minmax(b, eval_chess_board, 1)
-    expected = Move(7,2, 3,6)
+    expected = Move(7, 2, 3, 6)
     assert move == expected
 
     _, move = minmax(b, eval_chess_board, 2)
-    expected = Move(7,2, 3,6)
+    expected = Move(7, 2, 3, 6)
     assert move == expected
 
 
@@ -517,38 +570,42 @@ def test_minmax_3():
     b = ChessBoard()
     b.turn = "white"
     # https://chesspuzzlesonline.com/solution/ps248/
-    b.board = np.array((
-        ". . . . . . . k".split(),
-        ". . r . n . p .".split(),
-        ". . . . B p . .".split(),
-        ". . . P . . . .".split(),
-        ". . . . . K p .".split(),
-        ". . . . . . P .".split(),
-        ". . p . . P P .".split(),
-        "R . . . . . . .".split(),  # rook to H1, mate
-    ))
+    b.board = np.array(
+        (
+            ". . . . . . . k".split(),
+            ". . r . n . p .".split(),
+            ". . . . B p . .".split(),
+            ". . . P . . . .".split(),
+            ". . . . . K p .".split(),
+            ". . . . . . P .".split(),
+            ". . p . . P P .".split(),
+            "R . . . . . . .".split(),  # rook to H1, mate
+        )
+    )
     b._reset_piece_set()
 
     _, move = minmax(b, eval_chess_board, 3)
     b.print_move(move)
-    expected = Move(7,0, 7,7)
+    expected = Move(7, 0, 7, 7)
     assert move == expected
 
     # forked!
     b.turn = "black"
-    b.board = np.array((
-        "r . b . k b . r".split(),
-        "p p p p n p p p".split(),
-        ". . . . . . . .".split(),
-        ". . . P . . . .".split(),
-        ". . . n . . . .".split(),
-        ". . . . . . . N".split(),
-        "P P P . . P P P".split(),  # fork the king and rook!
-        "R N B . K B . R".split(),
-    ))
+    b.board = np.array(
+        (
+            "r . b . k b . r".split(),
+            "p p p p n p p p".split(),
+            ". . . . . . . .".split(),
+            ". . . P . . . .".split(),
+            ". . . n . . . .".split(),
+            ". . . . . . . N".split(),
+            "P P P . . P P P".split(),  # fork the king and rook!
+            "R N B . K B . R".split(),
+        )
+    )
     b._reset_piece_set()
 
     _, move = minmax(b, eval_chess_board, 3)
     b.print_move(move)
-    expected = Move(4,3, 6,2)
+    expected = Move(4, 3, 6, 2)
     assert move == expected

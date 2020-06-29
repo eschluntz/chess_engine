@@ -28,13 +28,13 @@ The API for doing and searching through moves is interesting - originally I plan
 
 Instead, I made `do_move()` modify the board object in place, and added an `undo_move()` function which pops from a stack of past moves to revert the board. This allows a single board object to be used across the entire search tree pushing and popping moves, without any copying of data. This is a pattern I had seen in online chess engines
 
-### Search Algorithm - Min-Max, Alpha-Beta pruning
+### Search Algorithm - Min-Max, Alpha-Beta pruning, Move ordering
 
 Ideally I'll be able to use the same search function for both tic tac toe, chess, and future adversarial games!
 
 1. Min-Max: the bread and butter of adversarial games. Assume that I'll do my best possible move and the opponent will do their best possible mvoe.
 2. Alpha-Beta pruning: Because of how min-max works, we can establish upper and lower bounds of our other options, and quit exploring a branch of the tree early if we know that it won't be chosen. It's pretty incredible how much of a speedup alpha-beta gave me!
-3. TODO: move ordering: exploring moves from best to worst makes alpha beta pruning WAY more effective. For chess I should explore using extra calls to the evaluation function to sort the moves, and then go down them. (or maybe even some sort of shallower tree search first, to order the options.)
+3. move ordering: exploring moves from best to worst makes alpha beta pruning WAY more effective. For chess I should explore using extra calls to the evaluation function to sort the moves, and then go down them. (or maybe even some sort of shallower tree search first, to order the options.)
 
 ![times](https://github.com/eschluntz/games/blob/master/time_graph.png?raw=true)
 
@@ -85,3 +85,10 @@ The best way I can think to do this is:
 4. order the moves in some better way?
 
 Upon further thought, it will probably be easiest to generate possible moves at the same time as testing legality - especially for "sliding" pieces, that must stop at the first thing they hit.
+
+### Future Improvements
+
+1. Finish all special moves: en passant, promoting pawns, castling
+2. Iterative deepening to keep a constant time, rather than depth level. also to improve move ordering
+3. Transposition Tables - Basically a hashtable for scores for any board position we've seen so far.
+  a. Use this with iterative deepening to provide move orderings using depth-1 saves.

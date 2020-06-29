@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import time
+from typing import Tuple
 
 import numpy as np
 
@@ -60,7 +61,7 @@ class TicTacToeBoard(object):
         self.turn = self.next_turn()
 
 
-def eval_tictactoe(board):
+def eval_tictactoe(board) -> Tuple[int, bool]:
     """Evaluates a tictactoe board.
     "x" winning -> positive
     "o" winning -> negative.
@@ -73,10 +74,10 @@ def eval_tictactoe(board):
         # https://stackoverflow.com/questions/46802651/check-for-winner-in-tic-tac-toe-numpy-python
         mask = board.board == team
         win = (
-            mask.all(0).any() or  # columns
-            mask.all(1).any() or  # rows
-            np.diag(mask).all() or  # down right
-            np.diag(mask[:,::-1]).all()  # up right
+            mask.all(0).any()
+            or mask.all(1).any()  # columns
+            or np.diag(mask).all()  # rows
+            or np.diag(mask[:, ::-1]).all()  # down right  # up right
         )
 
         if win:
@@ -86,6 +87,29 @@ def eval_tictactoe(board):
     open_positions = np.sum(board.board == " ")
     tie_game = open_positions == 0
     return 0, tie_game
+
+
+TRANSPOSITION_TABLE = {}
+# Maps (board+depth) -> score to avoid repeated work and improve move ordering
+# key: str(board.board.flatten()) + depth
+
+
+def iterative_deepening(board, eval_fn, max_depth, max_t=10.0):
+    """Iteratively calls minmax with higher depths.
+    1. this allows us to gracefully add a time limit.
+    2. NOTE: should fill up the transposition table for better move ordering,
+    but using that for move ordering doesn't seem to be better than the straight eval_fn
+
+    Returns: (score, move)
+    """
+    t0 = time.time()
+    score, move = None, None
+    for depth in range(max_depth + 1):
+        tot_t = time.time() - t0
+        if tot_t > max_t:
+            break
+        score, move = minmax(board, eval_fn, depth)
+    return score, move
 
 
 def minmax(board, eval_fn, max_depth, alpha=-np.inf, beta=np.inf):
@@ -109,13 +133,9 @@ def minmax(board, eval_fn, max_depth, alpha=-np.inf, beta=np.inf):
     returns: (score, move) the expected score down that path.
     """
 
-    # base case - hit max depth
-    if max_depth == 0:
-        return eval_fn(board)[0], None
-
-    # base case - game over
+    # base cases
     score, done = eval_fn(board)
-    if done:
+    if done or max_depth == 0:
         return score, None
 
     # are we maxing or mining?
@@ -128,17 +148,34 @@ def minmax(board, eval_fn, max_depth, alpha=-np.inf, beta=np.inf):
     all_moves = board.moves()
 
     # order these nicely to improve alpha beta pruning
-    def score_move(move):
+    def score_move_heuristic(move):
         board.do_move(move)
-        score = eval_fn(board)
+        score, _ = eval_fn(board)
         board.undo_move()
         return score
-    all_moves.sort(key=score_move, reverse=(board.turn=="white"))  # TODO: fix white / x
+
+    all_moves.sort(key=score_move_heuristic, reverse=(board.turn == "white"))  # TODO: fix white / x
+
+    # we've already sorted
+    if max_depth == 1:
+        move = all_moves[0]
+        board.do_move(move)
+        score, _ = eval_fn(board)
+        board.undo_move()
+        return score, move
 
     # search the tree!
     for move in all_moves:
         board.do_move(move)
-        score, _ = minmax(board, eval_fn, max_depth - 1, alpha, beta)
+        # add to transposition table
+        key = "".join(board.board.flatten()) + str(max_depth - 1)
+
+        if key in TRANSPOSITION_TABLE:
+            score = TRANSPOSITION_TABLE[key]
+        else:
+            score, _ = minmax(board, eval_fn, max_depth - 1, alpha, beta)
+            TRANSPOSITION_TABLE[key] = score
+
         board.undo_move()
 
         if score * direction > best_score * direction:
@@ -185,16 +222,18 @@ def play_game():
                 print("Tie!")
                 return 0
 
+
 def time_game():
     """Generate a list of execution times for different search depths"""
     for depth in range(15):
         b = TicTacToeBoard()
-        b.board[0,0] = "o"
+        b.board[0, 0] = "o"
 
         t0 = time.time()
         minmax(b, eval_tictactoe, depth)
         t1 = time.time()
         print((depth, t1 - t0))
+
 
 if __name__ == "__main__":
     play_game()

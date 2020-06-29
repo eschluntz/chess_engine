@@ -11,7 +11,7 @@ import numpy as np
 WIN_SCORE = 1000
 SIZE = 8
 WHITE_PIECES = ["P", "R", "N", "B", "K", "Q"]
-BLACK_PIECES = [ p.lower() for p in WHITE_PIECES ]
+BLACK_PIECES = [p.lower() for p in WHITE_PIECES]
 ALL_PIECES = WHITE_PIECES + BLACK_PIECES
 
 
@@ -24,7 +24,7 @@ class Move(object):
     """Class to represent a move.
     TODO: handle castles and promotions"""
 
-    def __init__(self, r_from : int, c_from : int, r_to : int, c_to : int, piece=None, captured=None) -> None:
+    def __init__(self, r_from: int, c_from: int, r_to: int, c_to: int, piece=None, captured=None) -> None:
         self.r_from = r_from
         self.c_from = c_from
         self.r_to = r_to
@@ -41,12 +41,13 @@ class Move(object):
             capt = ""
         else:
             capt = " x {}".format(self.captured)
-        return "Move {} ({}, {}) -> ({}, {}) {}".format(self.piece, self.r_from, self.c_from, self.r_to, self.c_to, capt)
+        return "Move {} ({}, {}) -> ({}, {}) {}".format(
+            self.piece, self.r_from, self.c_from, self.r_to, self.c_to, capt
+        )
 
     def __eq__(self, other) -> bool:
         """Note: only compares to and from positions, not piece or capture"""
-        return (self.r_from, self.c_from, self.r_to, self.c_to) == \
-            (other.r_from, other.c_from, other.r_to, other.c_to)
+        return (self.r_from, self.c_from, self.r_to, self.c_to) == (other.r_from, other.c_from, other.r_to, other.c_to)
 
 
 class ChessBoard(object):
@@ -54,8 +55,8 @@ class ChessBoard(object):
 
     def __init__(self):
         self.board = np.full(shape=(SIZE, SIZE), fill_value=".", dtype="<U1")
-        self.piece_set : Set[Tuple[str, int, int]] = set()
-        self.past_moves : Sequence[Tuple[Move, str]] = []
+        self.piece_set: Set[Tuple[str, int, int]] = set()
+        self.past_moves: Sequence[Tuple[Move, str]] = []
         self.turn = "white"
         # TODO: store info to assess whether castling is still allowed, and en passant is still allowed
         self.set_pieces()
@@ -72,7 +73,7 @@ class ChessBoard(object):
         self.piece_set = set()
         for r in range(SIZE):
             for c in range(SIZE):
-                p = self.board[r,c]
+                p = self.board[r, c]
                 if p != ".":
                     self.piece_set.add((p, r, c))
 
@@ -114,11 +115,9 @@ class ChessBoard(object):
         else:
             my_piece = str.islower
 
-        return [ x for x in self.piece_set if my_piece(x[0]) ]
+        return [x for x in self.piece_set if my_piece(x[0])]
 
         # pieces = []
-
-
 
         # for r in range(SIZE):
         #     for c in range(SIZE):
@@ -127,7 +126,9 @@ class ChessBoard(object):
 
         # return pieces
 
-    def _get_sliding_dests(self, r : int, c : int, player: str, steps : Sequence[Tuple[int, int]], max_steps=SIZE) -> Sequence[Tuple[int, int]]:
+    def _get_sliding_dests(
+        self, r: int, c: int, player: str, steps: Sequence[Tuple[int, int]], max_steps=SIZE
+    ) -> Sequence[Tuple[int, int]]:
         """Expand a list of "step" directions into a list of possible destinations for the piece"""
         if player == "black":
             my_piece = str.islower
@@ -151,7 +152,9 @@ class ChessBoard(object):
                     dests.append((r2, c2))
         return dests
 
-    def _get_jumping_dests(self, r : int, c : int, player : str, jumps : Sequence[Tuple[int, int]]) -> Sequence[Tuple[int, int]]:
+    def _get_jumping_dests(
+        self, r: int, c: int, player: str, jumps: Sequence[Tuple[int, int]]
+    ) -> Sequence[Tuple[int, int]]:
         """Filter a list of jumping destinations and return the valid ones"""
         if player == "black":
             my_piece = str.islower
@@ -168,7 +171,7 @@ class ChessBoard(object):
                     dests.append((r2, c2))
         return dests
 
-    def _get_pawn_dests(self, r : int, c : int, player : str):
+    def _get_pawn_dests(self, r: int, c: int, player: str):
         """pawns are actually the most complex pieces on the board! Their moves:
         1. are asymmetric, 2. depend on their position, 3. depends on opponents 4. moves do not equal captures
         TODO: implement promoting"""
@@ -192,7 +195,7 @@ class ChessBoard(object):
                 if inbound(r2, c2) and self.board[r2, c2].islower():
                     pawn_jumps.append((-1, dc))
         else:  # black
-            r2, c2 = r +1, c
+            r2, c2 = r + 1, c
             if inbound(r2, c2) and self.board[r2, c2] == ".":  # jump forward if clear
                 pawn_jumps.append((1, 0))
                 if r == 1 and self.board[r + 2, c] == ".":  # double jump if not blocked and on home row
@@ -203,7 +206,7 @@ class ChessBoard(object):
                     pawn_jumps.append((1, dc))
         return self._get_jumping_dests(r, c, player, pawn_jumps)
 
-    def get_dests_for_piece(self, r : int, c : int, piece=None) -> Sequence[Tuple[int, int]]:
+    def get_dests_for_piece(self, r: int, c: int, piece=None) -> Sequence[Tuple[int, int]]:
         """Given a particular piece, generates all possible destinatinos for it to move to.
         piece: optional param to override piece at board location
         TODO: filter destinations that would put us in check.
@@ -218,9 +221,9 @@ class ChessBoard(object):
 
         # piece delta movements
         knight_jumps = [(1, 2), (1, -2), (2, 1), (2, -1), (-1, 2), (-1, -2), (-2, 1), (-2, -1)]
-        king_jumps = [(1,1), (1,0), (1,-1), (0,1), (0,-1), (-1,1), (-1,0), (-1,-1)]
-        rook_steps = [(1,0), (0,1), (-1,0), (0,-1)]
-        bishop_steps = [(1,1), (1,-1), (-1,1), (-1,-1)]
+        king_jumps = [(1, 1), (1, 0), (1, -1), (0, 1), (0, -1), (-1, 1), (-1, 0), (-1, -1)]
+        rook_steps = [(1, 0), (0, 1), (-1, 0), (0, -1)]
+        bishop_steps = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
         queen_steps = rook_steps + bishop_steps
 
         piece_type = piece.lower()
@@ -230,9 +233,9 @@ class ChessBoard(object):
             destinations = self._get_sliding_dests(r, c, player, rook_steps)
         elif piece_type == "n":
             destinations = self._get_jumping_dests(r, c, player, knight_jumps)
-        elif piece_type == 'b':
+        elif piece_type == "b":
             destinations = self._get_sliding_dests(r, c, player, bishop_steps)
-        elif piece_type == 'q':
+        elif piece_type == "q":
             destinations = self._get_sliding_dests(r, c, player, queen_steps)
         elif piece_type == "k":
             destinations = self._get_jumping_dests(r, c, player, king_jumps)
@@ -241,7 +244,7 @@ class ChessBoard(object):
 
         return destinations
 
-    def dests_to_array(self, dests : Sequence[Tuple[int,int]]) -> np.array:
+    def dests_to_array(self, dests: Sequence[Tuple[int, int]]) -> np.array:
         """For visualization purposes, draw all locations of destinations onto a board"""
         board = np.full(shape=(SIZE, SIZE), fill_value=0)
         for r, c in dests:
@@ -309,17 +312,20 @@ class ChessBoard(object):
         board[move.r_to, move.c_to] = colored(board[move.r_to, move.c_to], "green")
         out = ""
         for row in board:
-            out += (" ".join(row) + "\n")
+            out += " ".join(row) + "\n"
         print(out)
 
     def __str__(self):
         """Displays the chess board"""
         out = ""
         for row in self.board:
-            out += (" ".join(row) + "\n")
+            out += " ".join(row) + "\n"
         return out
 
+
 _PIECE_TABLE = None  # cache
+
+
 def _get_piece_tables() -> Dict:
     """Returns piece tables for the eval function.
     source: https://www.chessprogramming.org/Simplified_Evaluation_Function"""
@@ -328,76 +334,90 @@ def _get_piece_tables() -> Dict:
         return _PIECE_TABLE
 
     piece_table = {}
-    piece_table["P"] = np.array((
-        (0,  0,  0,  0,  0,  0,  0,  0),
-        (50, 50, 50, 50, 50, 50, 50, 50),
-        (10, 10, 20, 30, 30, 20, 10, 10),
-        (5,  5, 10, 25, 25, 10,  5,  5),
-        (0,  0,  0, 20, 20,  0,  0,  0),
-        (5, -5,-10,  0,  0,-10, -5,  5),
-        (5, 10, 10,-20,-20, 10, 10,  5),
-        (0,  0,  0,  0,  0,  0,  0,  0),
-    ))
-    piece_table["N"] = np.array((
-        (-50,-40,-30,-30,-30,-30,-40,-50),
-        (-40,-20,  0,  0,  0,  0,-20,-40),
-        (-30,  0, 10, 15, 15, 10,  0,-30),
-        (-30,  5, 15, 20, 20, 15,  5,-30),
-        (-30,  0, 15, 20, 20, 15,  0,-30),
-        (-30,  5, 10, 15, 15, 10,  5,-30),
-        (-40,-20,  0,  5,  5,  0,-20,-40),
-        (-50,-40,-30,-30,-30,-30,-40,-50),
-    ))
-    piece_table["B"] = np.array((
-        (-20,-10,-10,-10,-10,-10,-10,-20),
-        (-10,  0,  0,  0,  0,  0,  0,-10),
-        (-10,  0,  5, 10, 10,  5,  0,-10),
-        (-10,  5,  5, 10, 10,  5,  5,-10),
-        (-10,  0, 10, 10, 10, 10,  0,-10),
-        (-10, 10, 10, 10, 10, 10, 10,-10),
-        (-10,  5,  0,  0,  0,  0,  5,-10),
-        (-20,-10,-10,-10,-10,-10,-10,-20),
-    ))
-    piece_table["R"] = np.array((
-        ( 0,  0,  0,  0,  0,  0,  0,  0),
-        ( 5, 10, 10, 10, 10, 10, 10,  5),
-        (-5,  0,  0,  0,  0,  0,  0, -5),
-        (-5,  0,  0,  0,  0,  0,  0, -5),
-        (-5,  0,  0,  0,  0,  0,  0, -5),
-        (-5,  0,  0,  0,  0,  0,  0, -5),
-        (-5,  0,  0,  0,  0,  0,  0, -5),
-        ( 0,  0,  0,  5,  5,  0,  0,  0),
-    ))
-    piece_table["Q"] = np.array((
-        (-20,-10,-10, -5, -5,-10,-10,-20),
-        (-10,  0,  0,  0,  0,  0,  0,-10),
-        (-10,  0,  5,  5,  5,  5,  0,-10),
-        ( -5,  0,  5,  5,  5,  5,  0, -5),
-        (  0,  0,  5,  5,  5,  5,  0, -5),
-        (-10,  5,  5,  5,  5,  5,  0,-10),
-        (-10,  0,  5,  0,  0,  0,  0,-10),
-        (-20,-10,-10, -5, -5,-10,-10,-20),
-    ))
-    piece_table["K"] = np.array((
-        (-30,-40,-40,-50,-50,-40,-40,-30),
-        (-30,-40,-40,-50,-50,-40,-40,-30),
-        (-30,-40,-40,-50,-50,-40,-40,-30),
-        (-30,-40,-40,-50,-50,-40,-40,-30),
-        (-20,-30,-30,-40,-40,-30,-30,-20),
-        (-10,-20,-20,-20,-20,-20,-20,-10),
-        ( 20, 20,  0,  0,  0,  0, 20, 20),
-        ( 20, 30, 10,  0,  0, 10, 30, 20),
-    ))
-    piece_table["."] = np.array((
-        (  0,  0,  0,  0,  0,  0,  0,  0),
-        (  0,  0,  0,  0,  0,  0,  0,  0),
-        (  0,  0,  0,  0,  0,  0,  0,  0),
-        (  0,  0,  0,  0,  0,  0,  0,  0),
-        (  0,  0,  0,  0,  0,  0,  0,  0),
-        (  0,  0,  0,  0,  0,  0,  0,  0),
-        (  0,  0,  0,  0,  0,  0,  0,  0),
-        (  0,  0,  0,  0,  0,  0,  0,  0),
-    ))
+    piece_table["P"] = np.array(
+        (
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (50, 50, 50, 50, 50, 50, 50, 50),
+            (10, 10, 20, 30, 30, 20, 10, 10),
+            (5, 5, 10, 25, 25, 10, 5, 5),
+            (0, 0, 0, 20, 20, 0, 0, 0),
+            (5, -5, -10, 0, 0, -10, -5, 5),
+            (5, 10, 10, -20, -20, 10, 10, 5),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+        )
+    )
+    piece_table["N"] = np.array(
+        (
+            (-50, -40, -30, -30, -30, -30, -40, -50),
+            (-40, -20, 0, 0, 0, 0, -20, -40),
+            (-30, 0, 10, 15, 15, 10, 0, -30),
+            (-30, 5, 15, 20, 20, 15, 5, -30),
+            (-30, 0, 15, 20, 20, 15, 0, -30),
+            (-30, 5, 10, 15, 15, 10, 5, -30),
+            (-40, -20, 0, 5, 5, 0, -20, -40),
+            (-50, -40, -30, -30, -30, -30, -40, -50),
+        )
+    )
+    piece_table["B"] = np.array(
+        (
+            (-20, -10, -10, -10, -10, -10, -10, -20),
+            (-10, 0, 0, 0, 0, 0, 0, -10),
+            (-10, 0, 5, 10, 10, 5, 0, -10),
+            (-10, 5, 5, 10, 10, 5, 5, -10),
+            (-10, 0, 10, 10, 10, 10, 0, -10),
+            (-10, 10, 10, 10, 10, 10, 10, -10),
+            (-10, 5, 0, 0, 0, 0, 5, -10),
+            (-20, -10, -10, -10, -10, -10, -10, -20),
+        )
+    )
+    piece_table["R"] = np.array(
+        (
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (5, 10, 10, 10, 10, 10, 10, 5),
+            (-5, 0, 0, 0, 0, 0, 0, -5),
+            (-5, 0, 0, 0, 0, 0, 0, -5),
+            (-5, 0, 0, 0, 0, 0, 0, -5),
+            (-5, 0, 0, 0, 0, 0, 0, -5),
+            (-5, 0, 0, 0, 0, 0, 0, -5),
+            (0, 0, 0, 5, 5, 0, 0, 0),
+        )
+    )
+    piece_table["Q"] = np.array(
+        (
+            (-20, -10, -10, -5, -5, -10, -10, -20),
+            (-10, 0, 0, 0, 0, 0, 0, -10),
+            (-10, 0, 5, 5, 5, 5, 0, -10),
+            (-5, 0, 5, 5, 5, 5, 0, -5),
+            (0, 0, 5, 5, 5, 5, 0, -5),
+            (-10, 5, 5, 5, 5, 5, 0, -10),
+            (-10, 0, 5, 0, 0, 0, 0, -10),
+            (-20, -10, -10, -5, -5, -10, -10, -20),
+        )
+    )
+    piece_table["K"] = np.array(
+        (
+            (-30, -40, -40, -50, -50, -40, -40, -30),
+            (-30, -40, -40, -50, -50, -40, -40, -30),
+            (-30, -40, -40, -50, -50, -40, -40, -30),
+            (-30, -40, -40, -50, -50, -40, -40, -30),
+            (-20, -30, -30, -40, -40, -30, -30, -20),
+            (-10, -20, -20, -20, -20, -20, -20, -10),
+            (20, 20, 0, 0, 0, 0, 20, 20),
+            (20, 30, 10, 0, 0, 10, 30, 20),
+        )
+    )
+    piece_table["."] = np.array(
+        (
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0),
+        )
+    )
 
     # fill in black piece table. Flip and negate values
     for p in list(piece_table.keys()):  # cast to list to allow iterating over original keys
@@ -409,16 +429,16 @@ def _get_piece_tables() -> Dict:
         "K": 20000,
         "k": -20000,
         "Q": 900,
-        "q":-900,
+        "q": -900,
         "R": 500,
-        "r":-500,
+        "r": -500,
         "B": 330,
-        "b":-330,
+        "b": -330,
         "N": 320,
-        "n":-320,
+        "n": -320,
         "P": 100,
-        "p":-100,
-        ".": 0
+        "p": -100,
+        ".": 0,
     }
     for p, v in values.items():
         piece_table[p] += v
@@ -426,7 +446,8 @@ def _get_piece_tables() -> Dict:
     _PIECE_TABLE = piece_table
     return piece_table
 
-def eval_chess_board(board: ChessBoard) -> float:
+
+def eval_chess_board(board: ChessBoard) -> Tuple[int, bool]:
     """Evaluates a ChessBoard.
     "white" winning -> positive
     "black" winning -> negative.
@@ -440,19 +461,20 @@ def eval_chess_board(board: ChessBoard) -> float:
     # just using piece table score + base values
     piece_table = _get_piece_tables()
 
-    score = sum(piece_table[p][r,c] for p, r, c in board.piece_set)
+    score = sum(piece_table[p][r, c] for p, r, c in board.piece_set)
 
     game_over = "k" not in board.board or "K" not in board.board
 
     return (score, game_over)
 
 
-def file_to_column(f : str) -> int:
+def file_to_column(f: str) -> int:
     """Translates a letter 'file' to column index"""
     c = ord(f.lower()) - ord("a")
     if c < 0 or c > 7:
         raise ValueError("File is out of bounds: {}".format(f))
     return c
+
 
 def rank_to_row(rank: str) -> int:
     """Translates a number Rank to row index"""
@@ -489,7 +511,7 @@ def get_user_move(board: ChessBoard):
         # see if engine agrees it was a valid move
         piece = board.board[r_from, c_from]
         captured = board.board[r_to, c_to]
-        move = Move(r_from,c_from, r_to, c_to, piece, captured)
+        move = Move(r_from, c_from, r_to, c_to, piece, captured)
         if move not in possible_moves:
             print("Illegal move!")
             board.print_move(move)
@@ -513,16 +535,33 @@ def play(white="human", black="computer"):
         b.do_move(move)
         b.print_move(move)
 
+
 def time_test():
     """Time a move search"""
     b = ChessBoard()
+    b.board = np.array(
+        (
+            "r . . . k . . r".split(),
+            "p . p p q p b .".split(),
+            "b n . . p n p .".split(),
+            ". . . P N . . .".split(),
+            ". p . . P . . .".split(),
+            ". . N . . Q . p".split(),
+            "P P P B B P P P".split(),
+            "R . . . K . . R".split(),
+        )
+    )
+    b._reset_piece_set()
     import time
+
     t0 = time.time()
     _, move = minmax(b, eval_chess_board, 4)
     t1 = time.time()
     print(t1 - t0)
 
+
 if __name__ == "__main__":
-    from tictactoe import minmax
-    # time_test()
-    play(white="computer", black="computer")
+    from tictactoe import minmax, iterative_deepening
+
+    time_test()
+    # play(white="computer", black="computer")
