@@ -2,20 +2,17 @@
 
 from typing import Set
 import copy
-from unittest import mock
 
 import numpy as np
 
-from games.chess import (
+from chess import (
     ChessBoard,
     SIZE,
     Move,
     eval_chess_board,
     get_user_move,
 )
-from games.tictactoe import minmax
-
-import games
+from search import minmax
 
 
 def test_setup_and_print():

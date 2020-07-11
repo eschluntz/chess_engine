@@ -8,6 +8,8 @@ import functools
 
 import numpy as np
 
+from search import minmax, iterative_deepening
+
 WIN_SCORE = 1000
 SIZE = 8
 WHITE_PIECES = ["P", "R", "N", "B", "K", "Q"]
@@ -561,7 +563,6 @@ def time_test():
 
 
 if __name__ == "__main__":
-    from tictactoe import minmax, iterative_deepening
 
-    time_test()
-    # play(white="computer", black="computer")
+    # time_test()
+    play(white="computer", black="computer")

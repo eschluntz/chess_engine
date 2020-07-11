@@ -2,8 +2,8 @@
 
 import numpy as np
 import copy
-from games.tictactoe import TicTacToeBoard, eval_tictactoe, minmax, WIN_SCORE, play_game
-from games import tictactoe
+from tictactoe import TicTacToeBoard, eval_tictactoe, WIN_SCORE, play_game
+from search import minmax
 
 def test_display():
     b = TicTacToeBoard()
@@ -79,8 +79,8 @@ def test_minmax():
     b = TicTacToeBoard(turn="x")
     b.board = np.array((("x", " ", " "), (" ", "x", " "), (" ", " ", " ")))
     score, move = minmax(b, eval_tictactoe, 1)
-    assert score == WIN_SCORE
     assert move == (2, 2)
+    assert score == WIN_SCORE
 
     # depth = 2, defense
     b = TicTacToeBoard(turn="x")
@@ -108,7 +108,3 @@ def test_minmax_deep():
     # check board is unchanged after call to eval
     assert np.all(b.board == start)
     assert b.past_moves == []
-
-def test_play_game():
-    tictactoe.input = lambda text : "0, 0"  # gross, but this is barely worth testing
-    assert play_game() == -WIN_SCORE
