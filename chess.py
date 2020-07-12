@@ -582,6 +582,13 @@ def player_human(board: ChessBoard) -> Move:
     return move
 
 
+def player_depth_6(board: ChessBoard) -> Move:
+    """Minmax depth 4, standard heuristics"""
+    score, move = minmax(board, eval_chess_board, 6)
+    print("expected score: {}".format(score))
+    return move
+
+
 def player_depth_5(board: ChessBoard) -> Move:
     """Minmax depth 4, standard heuristics"""
     score, move = minmax(board, eval_chess_board, 5)
@@ -600,16 +607,29 @@ def player_depth_3(board: ChessBoard) -> Move:
     print("expected score: {}".format(score))
     return move
 
-def player_depth_2(board: ChessBoard) -> Move:
-    """Minmax depth 4, standard heuristics"""
-    score, move = minmax(board, eval_chess_board, 2)
-    print("expected score: {}".format(score))
-    return move
+def get_all_players() -> Sequence[Player]:
+    """Returns a list of all combinations of different player settings dicts"""
+    all_players = []
+    for eval_fn in [eval_chess_board, eval_chess_material_only, eval_chess_mobility]:
+        for branch_ratio in [1.0, .8, .6, .4, .2]:
+            for depth in [3, 4, 5, 6, 7, 8]:
+                # speed control:
+                if depth == 6 and branch_ratio > .6:
+                    continue
+                if depth == 7 and branch_ratio > .4:
+                    continue
+                if depth == 8 and branch_ratio > .2:
+                    continue
 
-def player_depth_1(board: ChessBoard) -> Move:
-    """Minmax depth 4, standard heuristics"""
-    _, move = minmax(board, eval_chess_board, 1)
-    return move
+                # construct a player function
+                def player(board : ChessBoard) -> Move:
+                    print((eval_fn, branch_ratio, depth))
+                    _, move = minmax(board, eval_fn, depth, explore_ratio=branch_ratio, min_branches=10)
+                    return move
+
+                all_players.append(player)
+
+    return all_players
 
 
 def play(p_white : Player, p_black : Player):
@@ -627,6 +647,8 @@ def play(p_white : Player, p_black : Player):
         b.print_move(move)
         score, over = eval_chess_board(b)
         print("Current Score: {}".format(score))
+
+    return score
 
 
 def time_test():
@@ -648,13 +670,14 @@ def time_test():
     import time
 
     t0 = time.time()
-    _, move = minmax(b, eval_chess_board, 4)
+    _, move = minmax(b, eval_chess_board, 8, explore_ratio=0.2, min_branches=10)
     t1 = time.time()
     print(t1 - t0)
 
 
 if __name__ == "__main__":
 
-    time_test()
-    # play(p_white=player_depth_5, p_black=player_depth_5)
+    # time_test()
+    players = get_all_players()
+    play(p_white=players[0], p_black=players[1])
     # draw()
