@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import time
-from typing import Dict, List, Tuple, Sequence, Set, Callable, TypeVar
+from typing import Dict, List, Tuple, Sequence, Set, Callable, TypeVar, Optional
 from copy import deepcopy
 from termcolor import colored
 import functools
@@ -441,10 +441,10 @@ def _get_piece_tables() -> Dict:
     for p in list(piece_table.keys()):  # cast to list to allow iterating over original keys
         piece_table[p.lower()] = -np.flip(piece_table[p])
 
-    # add base piece values
-    # add piece values
-    for p, v in PIECE_VALUES.items():
-        piece_table[p] += v
+    # # add base piece values
+    # # add piece values
+    # for p, v in PIECE_VALUES.items():
+    #     piece_table[p] += v
 
     _PIECE_TABLE = piece_table
     return piece_table
@@ -473,7 +473,7 @@ def eval_game_over(board: ChessBoard) -> Tuple[int, bool]:
     return 0, False
 
 
-def eval_chess_board(board: ChessBoard) -> Tuple[int, bool]:
+def eval_chess_board(board: ChessBoard, params : Dict = {}) -> Tuple[int, bool]:
     """Evaluates a ChessBoard.
     "white" winning -> positive
     "black" winning -> negative.
@@ -489,39 +489,21 @@ def eval_chess_board(board: ChessBoard) -> Tuple[int, bool]:
     if game_over:
         return end_score, game_over
 
-    # piece table score + base values
-    piece_table = _get_piece_tables()
-    score = sum(piece_table[p][r, c] for p, r, c in board.piece_set)
+    score = 0
 
-    return score, False
+    # get material score
+    if params.get("material", True):
+        score += sum(PIECE_VALUES[p] for p, _, _ in board.piece_set)
 
+    # piece table score
+    if params.get("piece_table", True):
+        piece_table = _get_piece_tables()
+        score += sum(piece_table[p][r, c] for p, r, c in board.piece_set)
 
-def eval_chess_material_only(board: ChessBoard) -> Tuple[int, bool]:
-    """Evaluate a chess board only based on material value"""
-
-    # check if game is over
-    end_score, game_over = eval_game_over(board)
-    if game_over:
-        return end_score, game_over
-
-    # just sum material value
-    score = sum(PIECE_VALUES[p] for p, _, _ in board.piece_set)
-
-
-def eval_chess_mobility(board: ChessBoard) -> Tuple[int, bool]:
-    """Evaluate a chess board based on material and mobility value"""
-
-    # check if game is over
-    end_score, game_over = eval_game_over(board)
-    if game_over:
-        return end_score, game_over
-
-    # just sum material value
-    score = sum(PIECE_VALUES[p] for p, _, _ in board.piece_set)
-
-    # get number of moves
-    moves = len(board.moves(turn="white")) - len(board.moves(turn="black"))
-    score += 10 * moves
+    # mobility
+    if params.get("mobility", False):
+        moves = len(board.moves(turn="white")) - len(board.moves(turn="black"))
+        score += 10 * moves
 
     return score, False
 
@@ -544,13 +526,10 @@ def rank_to_row(rank: str) -> int:
 
 ##################
 # Chess Players
-Player = TypeVar('Player', bound=Callable[[ChessBoard], Move])
+Player = TypeVar('Player', bound=Callable[[ChessBoard, Optional[Dict]], Move])
 
 def player_human(board: ChessBoard) -> Move:
-    """Gets CLI input for the next move.
-    allow_illegal: don't check that move was a legal one"""
-    print("Turn: {}".format(board.turn))
-
+    """Gets CLI input for the next move"""
     possible_moves = board.moves()
 
     move = None
@@ -582,67 +561,53 @@ def player_human(board: ChessBoard) -> Move:
     return move
 
 
-def player_depth_6(board: ChessBoard) -> Move:
-    """Minmax depth 4, standard heuristics"""
-    score, move = minmax(board, eval_chess_board, 6)
-    print("expected score: {}".format(score))
+def player_computer(board: ChessBoard, params: Dict = {}) -> Move:
+    """Wrapper for minmax and eval board options.
+    The param dict gets passed down to minmax and the eval_fn"""
+
+    depth = params.get("depth", 5)
+    _, move = minmax(board, eval_chess_board, depth)
     return move
 
+# def get_all_players() -> Sequence[Player]:
+#     """Returns a list of all combinations of different player settings dicts"""
+#     all_players = []
+#     for branch_ratio in [1.0, .8, .6, .4, .2]:
+#         for depth in [3, 4, 5, 6, 7, 8]:
+#             # speed control:
+#             if depth == 6 and branch_ratio > .6:
+#                 continue
+#             if depth == 7 and branch_ratio > .4:
+#                 continue
+#             if depth == 8 and branch_ratio > .2:
+#                 continue
 
-def player_depth_5(board: ChessBoard) -> Move:
-    """Minmax depth 4, standard heuristics"""
-    score, move = minmax(board, eval_chess_board, 5)
-    print("expected score: {}".format(score))
-    return move
+#             # # construct a player function
+#             # def player(board : ChessBoard) -> Move:
+#             #     print((eval_fn, branch_ratio, depth))
+#             #     _, move = minmax(board, eval_fn, depth, explore_ratio=branch_ratio, min_branches=10)
+#             #     return move
 
-def player_depth_4(board: ChessBoard) -> Move:
-    """Minmax depth 4, standard heuristics"""
-    score, move = minmax(board, eval_chess_board, 4)
-    print("expected score: {}".format(score))
-    return move
+#             # all_players.append(player)
 
-def player_depth_3(board: ChessBoard) -> Move:
-    """Minmax depth 4, standard heuristics"""
-    score, move = minmax(board, eval_chess_board, 3)
-    print("expected score: {}".format(score))
-    return move
-
-def get_all_players() -> Sequence[Player]:
-    """Returns a list of all combinations of different player settings dicts"""
-    all_players = []
-    for eval_fn in [eval_chess_board, eval_chess_material_only, eval_chess_mobility]:
-        for branch_ratio in [1.0, .8, .6, .4, .2]:
-            for depth in [3, 4, 5, 6, 7, 8]:
-                # speed control:
-                if depth == 6 and branch_ratio > .6:
-                    continue
-                if depth == 7 and branch_ratio > .4:
-                    continue
-                if depth == 8 and branch_ratio > .2:
-                    continue
-
-                # construct a player function
-                def player(board : ChessBoard) -> Move:
-                    print((eval_fn, branch_ratio, depth))
-                    _, move = minmax(board, eval_fn, depth, explore_ratio=branch_ratio, min_branches=10)
-                    return move
-
-                all_players.append(player)
-
-    return all_players
+#     return all_players
 
 
-def play(p_white : Player, p_black : Player):
-    """Play a game of chess. both player functions should have (Board)->Move signature"""
+def play_human_v_ai(human_color="white", ai_params={}):
+    """Play a game of chess against the computer."""
     b = ChessBoard()
-
-    players = {"white": p_white, "black": p_black}
     print(b)
+
     over = False
     while not over:
         print("-----")
         print("Turn: {}".format(b.turn))
-        move = players[b.turn](b)
+
+        if b.turn == human_color:
+            move = player_human(b)
+        else:
+            move = player_computer(b, ai_params)
+
         b.do_move(move)
         b.print_move(move)
         score, over = eval_chess_board(b)
@@ -670,7 +635,7 @@ def time_test():
     import time
 
     t0 = time.time()
-    _, move = minmax(b, eval_chess_board, 8, explore_ratio=0.2, min_branches=10)
+    _, move = minmax(b, eval_chess_board, 4)
     t1 = time.time()
     print(t1 - t0)
 
@@ -678,6 +643,5 @@ def time_test():
 if __name__ == "__main__":
 
     # time_test()
-    players = get_all_players()
-    play(p_white=players[0], p_black=players[1])
+    play_human_v_ai(human_color="black")
     # draw()

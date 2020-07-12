@@ -25,7 +25,7 @@ def iterative_deepening(board, eval_fn, max_depth, max_t=10.0):
     return score, move
 
 
-def minmax(board, eval_fn, max_depth, alpha=-np.inf, beta=np.inf, explore_ratio=1.0, min_branches=10):
+def minmax(board, eval_fn, max_depth, alpha=-np.inf, beta=np.inf, params={}):
     """Finds the best move using MinMax and AlphaBeta pruning.
     Hopefully this function can be used across many different games!
 
@@ -38,8 +38,12 @@ def minmax(board, eval_fn, max_depth, alpha=-np.inf, beta=np.inf, explore_ratio=
     max_depth: how many more layers to search.
     alpha:  worst possible score for "x" = -inf
     beta:   worst possible score for "o" = +inf
-    explore_ratio: fraction of possible moves to explore
-    min_branches: overrides explore_ratio in case there are few branches
+    params: optional dict for controlling search and eval:
+        explore_ratio: fraction of possible moves to explore
+        min_branches: overrides explore_ratio in case there are few branches
+        piece_tables: bool to include piece_tables in the score
+        material: bool to include material in the score
+        mobility: bool to include mobility in the score
 
     returns: (score, move) the expected score down that path.
     """
@@ -47,7 +51,7 @@ def minmax(board, eval_fn, max_depth, alpha=-np.inf, beta=np.inf, explore_ratio=
     TIME_DISCOUNT = 0.95
 
     # base cases
-    score, done = eval_fn(board)
+    score, done = eval_fn(board, params)
     if done or max_depth == 0:
         return score, None
 
@@ -63,7 +67,7 @@ def minmax(board, eval_fn, max_depth, alpha=-np.inf, beta=np.inf, explore_ratio=
     # order these nicely to improve alpha beta pruning
     def score_move_heuristic(move):
         board.do_move(move)
-        score, _ = eval_fn(board)
+        score, _ = eval_fn(board, params)
         board.undo_move()
         return score
     all_moves.sort(key=score_move_heuristic, reverse=(board.turn in ["white", "x"]))  # TODO: fix white / x
@@ -77,7 +81,9 @@ def minmax(board, eval_fn, max_depth, alpha=-np.inf, beta=np.inf, explore_ratio=
         return int(score * TIME_DISCOUNT), move
 
     # search the tree!
-    num_to_explore = max(int(len(all_moves) * explore_ratio), min_branches)  # don't go below 10
+    explore_ratio = params.get("explore_ratio", 1.0)
+    min_branches = params.get("min_branches", 10)
+    num_to_explore = max(int(len(all_moves) * explore_ratio), min_branches)
 
     for move in all_moves[:num_to_explore]:
         board.do_move(move)
@@ -87,7 +93,7 @@ def minmax(board, eval_fn, max_depth, alpha=-np.inf, beta=np.inf, explore_ratio=
         if key in TRANSPOSITION_TABLE:
             score = TRANSPOSITION_TABLE[key]
         else:
-            score, _ = minmax(board, eval_fn, max_depth - 1, alpha, beta, explore_ratio, min_branches)
+            score, _ = minmax(board, eval_fn, max_depth - 1, alpha, beta, params)
             TRANSPOSITION_TABLE[key] = score
 
         board.undo_move()

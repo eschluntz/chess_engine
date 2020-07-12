@@ -63,7 +63,7 @@ class TicTacToeBoard(object):
         self.turn = self.next_turn()
 
 
-def eval_tictactoe(board) -> Tuple[int, bool]:
+def eval_tictactoe(board : TicTacToeBoard, params : dict = {}) -> Tuple[int, bool]:
     """Evaluates a tictactoe board.
     "x" winning -> positive
     "o" winning -> negative.
