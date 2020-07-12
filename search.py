@@ -25,7 +25,7 @@ def iterative_deepening(board, eval_fn, max_depth, max_t=10.0):
     return score, move
 
 
-def minmax(board, eval_fn, max_depth, alpha=-np.inf, beta=np.inf):
+def minmax(board, eval_fn, max_depth, alpha=-np.inf, beta=np.inf, explore_ratio=1.0):
     """Finds the best move using MinMax and AlphaBeta pruning.
     Hopefully this function can be used across many different games!
 
@@ -38,13 +38,12 @@ def minmax(board, eval_fn, max_depth, alpha=-np.inf, beta=np.inf):
     max_depth: how many more layers to search.
     alpha:  worst possible score for "x" = -inf
     beta:   worst possible score for "o" = +inf
-
-
-    TODO: make it prefer victories that are sooner, or defeats that are later.
-    TODO: sort possible moves by the eval_fn heuristic to improve pruning
+    explore_ratio: fraction of possible moves to explore
 
     returns: (score, move) the expected score down that path.
     """
+
+    TIME_DISCOUNT = 0.95
 
     # base cases
     score, done = eval_fn(board)
@@ -66,19 +65,21 @@ def minmax(board, eval_fn, max_depth, alpha=-np.inf, beta=np.inf):
         score, _ = eval_fn(board)
         board.undo_move()
         return score
-
     all_moves.sort(key=score_move_heuristic, reverse=(board.turn in ["white", "x"]))  # TODO: fix white / x
 
-    # we've already sorted
+    # we've already sorted, just return now (10% speedup)
     if max_depth == 1:
         move = all_moves[0]
         board.do_move(move)
         score, _ = eval_fn(board)
         board.undo_move()
-        return score, move
+        return int(score * TIME_DISCOUNT), move
 
     # search the tree!
-    for move in all_moves:
+    num_to_explore = int(len(all_moves) * explore_ratio)
+    num_to_explore = max(num_to_explore, 10)  # don't go below 10
+
+    for move in all_moves[:num_to_explore]:
         board.do_move(move)
         # add to transposition table
         key = "".join(board.board.flatten()) + str(max_depth - 1)
@@ -86,7 +87,7 @@ def minmax(board, eval_fn, max_depth, alpha=-np.inf, beta=np.inf):
         if key in TRANSPOSITION_TABLE:
             score = TRANSPOSITION_TABLE[key]
         else:
-            score, _ = minmax(board, eval_fn, max_depth - 1, alpha, beta)
+            score, _ = minmax(board, eval_fn, max_depth - 1, alpha, beta, explore_ratio)
             TRANSPOSITION_TABLE[key] = score
 
         board.undo_move()
@@ -103,4 +104,4 @@ def minmax(board, eval_fn, max_depth, alpha=-np.inf, beta=np.inf):
         if beta <= alpha:  # we know the parent won't choose us. abandon the search!
             break
 
-    return best_score, best_move
+    return int(best_score * TIME_DISCOUNT), best_move

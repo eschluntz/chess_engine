@@ -72,7 +72,7 @@ def test_minmax():
     b = TicTacToeBoard(turn="o")
     b.board = np.array((("o", " ", " "), (" ", "o", " "), (" ", " ", " ")))
     score, move = minmax(b, eval_tictactoe, 1)
-    assert score == -WIN_SCORE
+    assert score <= .75 * -WIN_SCORE  # some latitude for time discounting
     assert move == (2,2)
 
     # depth = 1, offense
@@ -80,7 +80,7 @@ def test_minmax():
     b.board = np.array((("x", " ", " "), (" ", "x", " "), (" ", " ", " ")))
     score, move = minmax(b, eval_tictactoe, 1)
     assert move == (2, 2)
-    assert score == WIN_SCORE
+    assert score >= .75 * WIN_SCORE
 
     # depth = 2, defense
     b = TicTacToeBoard(turn="x")
@@ -102,7 +102,7 @@ def test_minmax_deep():
     start = np.array((("o", " ", " "), ("x", " ", " "), (" ", " ", " ")))
     b.board = copy.deepcopy(start)
     score, move = minmax(b, eval_tictactoe, 6)
-    assert score == -WIN_SCORE
+    assert score <= .75 * -WIN_SCORE  # some latitude for time discounting
     assert move == (0, 2) or move == (0, 1)  # there are many other force victories
 
     # check board is unchanged after call to eval

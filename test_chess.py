@@ -10,7 +10,6 @@ from chess import (
     SIZE,
     Move,
     eval_chess_board,
-    get_user_move,
 )
 from search import minmax
 
@@ -505,7 +504,8 @@ def test_eval_chess_board():
     assert (0.0, False) == eval_chess_board(b), "start board test"
 
     b.clear_pieces()
-    assert (0.0, True) == eval_chess_board(b), "empty board test"
+    _, over = eval_chess_board(b)
+    assert over, "empty board test"
 
     b.set_pieces()
     b.board[6, 4] = "."  # advance king's pawn

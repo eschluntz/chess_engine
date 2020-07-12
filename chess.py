@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import time
-from typing import Dict, List, Tuple, Sequence, Set
+from typing import Dict, List, Tuple, Sequence, Set, Callable, TypeVar
 from copy import deepcopy
 from termcolor import colored
 import functools
@@ -327,6 +327,22 @@ class ChessBoard(object):
 
 _PIECE_TABLE = None  # cache
 
+PIECE_VALUES = {
+    "K": 20000,
+    "k": -20000,
+    "Q": 900,
+    "q": -900,
+    "R": 500,
+    "r": -500,
+    "B": 330,
+    "b": -330,
+    "N": 320,
+    "n": -320,
+    "P": 100,
+    "p": -100,
+    ".": 0,
+}
+
 
 def _get_piece_tables() -> Dict:
     """Returns piece tables for the eval function.
@@ -427,26 +443,34 @@ def _get_piece_tables() -> Dict:
 
     # add base piece values
     # add piece values
-    values = {
-        "K": 20000,
-        "k": -20000,
-        "Q": 900,
-        "q": -900,
-        "R": 500,
-        "r": -500,
-        "B": 330,
-        "b": -330,
-        "N": 320,
-        "n": -320,
-        "P": 100,
-        "p": -100,
-        ".": 0,
-    }
-    for p, v in values.items():
+    for p, v in PIECE_VALUES.items():
         piece_table[p] += v
 
     _PIECE_TABLE = piece_table
     return piece_table
+
+
+def eval_game_over(board: ChessBoard) -> Tuple[int, bool]:
+    """Returns (score, game_over).
+    white win -> positive."""
+
+    # look for 3 fold repetition tie
+    if len(board.past_moves) >= 10:
+        if board.past_moves[-1] == board.past_moves[-5] == board.past_moves[-9] and \
+            board.past_moves[-2] == board.past_moves[-6] == board.past_moves[-10]:
+            return 0, True
+
+    # look for win condition
+    if "k" not in board.board:
+        return WIN_SCORE, True
+    if "K" not in board.board:
+        return -WIN_SCORE, True
+
+    # look for max turn limit
+    if len(board.past_moves) > 200:
+        return 0, True
+
+    return 0, False
 
 
 def eval_chess_board(board: ChessBoard) -> Tuple[int, bool]:
@@ -460,14 +484,46 @@ def eval_chess_board(board: ChessBoard) -> Tuple[int, bool]:
     Tons of good heuristics here: https://www.chessprogramming.org/Evaluation
     """
 
-    # just using piece table score + base values
-    piece_table = _get_piece_tables()
+    # check if game is over
+    end_score, game_over = eval_game_over(board)
+    if game_over:
+        return end_score, game_over
 
+    # piece table score + base values
+    piece_table = _get_piece_tables()
     score = sum(piece_table[p][r, c] for p, r, c in board.piece_set)
 
-    game_over = "k" not in board.board or "K" not in board.board
+    return score, False
 
-    return (score, game_over)
+
+def eval_chess_material_only(board: ChessBoard) -> Tuple[int, bool]:
+    """Evaluate a chess board only based on material value"""
+
+    # check if game is over
+    end_score, game_over = eval_game_over(board)
+    if game_over:
+        return end_score, game_over
+
+    # just sum material value
+    score = sum(PIECE_VALUES[p] for p, _, _ in board.piece_set)
+
+
+def eval_chess_mobility(board: ChessBoard) -> Tuple[int, bool]:
+    """Evaluate a chess board based on material and mobility value"""
+
+    # check if game is over
+    end_score, game_over = eval_game_over(board)
+    if game_over:
+        return end_score, game_over
+
+    # just sum material value
+    score = sum(PIECE_VALUES[p] for p, _, _ in board.piece_set)
+
+    # get number of moves
+    moves = len(board.moves(turn="white")) - len(board.moves(turn="black"))
+    score += 10 * moves
+
+    return score, False
 
 
 def file_to_column(f: str) -> int:
@@ -486,8 +542,11 @@ def rank_to_row(rank: str) -> int:
         raise ValueError("Rank is out of bounds: {}".format(rank))
     return r
 
+##################
+# Chess Players
+Player = TypeVar('Player', bound=Callable[[ChessBoard], Move])
 
-def get_user_move(board: ChessBoard):
+def player_human(board: ChessBoard) -> Move:
     """Gets CLI input for the next move.
     allow_illegal: don't check that move was a legal one"""
     print("Turn: {}".format(board.turn))
@@ -523,19 +582,51 @@ def get_user_move(board: ChessBoard):
     return move
 
 
-def play(white="human", black="computer"):
-    """Play a game of chess"""
+def player_depth_5(board: ChessBoard) -> Move:
+    """Minmax depth 4, standard heuristics"""
+    score, move = minmax(board, eval_chess_board, 5)
+    print("expected score: {}".format(score))
+    return move
+
+def player_depth_4(board: ChessBoard) -> Move:
+    """Minmax depth 4, standard heuristics"""
+    score, move = minmax(board, eval_chess_board, 4)
+    print("expected score: {}".format(score))
+    return move
+
+def player_depth_3(board: ChessBoard) -> Move:
+    """Minmax depth 4, standard heuristics"""
+    score, move = minmax(board, eval_chess_board, 3)
+    print("expected score: {}".format(score))
+    return move
+
+def player_depth_2(board: ChessBoard) -> Move:
+    """Minmax depth 4, standard heuristics"""
+    score, move = minmax(board, eval_chess_board, 2)
+    print("expected score: {}".format(score))
+    return move
+
+def player_depth_1(board: ChessBoard) -> Move:
+    """Minmax depth 4, standard heuristics"""
+    _, move = minmax(board, eval_chess_board, 1)
+    return move
+
+
+def play(p_white : Player, p_black : Player):
+    """Play a game of chess. both player functions should have (Board)->Move signature"""
     b = ChessBoard()
-    player = {"white": white, "black": black}
+
+    players = {"white": p_white, "black": p_black}
     print(b)
-    while True:
-        # white
-        if player[b.turn] == "human":
-            move = get_user_move(b)
-        else:
-            _, move = minmax(b, eval_chess_board, 4)
+    over = False
+    while not over:
+        print("-----")
+        print("Turn: {}".format(b.turn))
+        move = players[b.turn](b)
         b.do_move(move)
         b.print_move(move)
+        score, over = eval_chess_board(b)
+        print("Current Score: {}".format(score))
 
 
 def time_test():
@@ -564,5 +655,6 @@ def time_test():
 
 if __name__ == "__main__":
 
-    # time_test()
-    play(white="computer", black="computer")
+    time_test()
+    # play(p_white=player_depth_5, p_black=player_depth_5)
+    # draw()
