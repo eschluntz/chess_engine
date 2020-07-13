@@ -5,12 +5,12 @@ import copy
 
 import numpy as np
 
-from chess import (
+from chessboard import (
     ChessBoard,
     SIZE,
     Move,
-    eval_chess_board,
 )
+from chess import eval_chess_board, play_game
 from search import minmax
 
 
@@ -606,3 +606,7 @@ def test_minmax_3():
     b.print_move(move)
     expected = Move(4, 3, 6, 2)
     assert move == expected
+
+def test_play():
+    # just make sure this doesn't error
+    play_game(white_params={"depth":3}, black_params={"depth":2})

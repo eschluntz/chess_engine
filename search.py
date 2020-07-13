@@ -39,16 +39,15 @@ def minmax(board, eval_fn, max_depth, alpha=-np.inf, beta=np.inf, params={}):
     alpha:  worst possible score for "x" = -inf
     beta:   worst possible score for "o" = +inf
     params: optional dict for controlling search and eval:
+        time_discount: how much to discount each turn
         explore_ratio: fraction of possible moves to explore
         min_branches: overrides explore_ratio in case there are few branches
-        piece_tables: bool to include piece_tables in the score
-        material: bool to include material in the score
-        mobility: bool to include mobility in the score
+        ... others passed on to eval_fn
 
     returns: (score, move) the expected score down that path.
     """
 
-    TIME_DISCOUNT = 0.95
+    TIME_DISCOUNT = params.get("time_discount", 0.95)
 
     # base cases
     score, done = eval_fn(board, params)
