@@ -29,13 +29,24 @@ def inbound(r, c):
 
 class Move(object):
     """Class to represent a move.
-    TODO: handle castles and promotions"""
+    Special moves: represented by the 'special' char code.
+        c: castle
+        e: en passant
+        q,n,b,r: promotion to that piece
+    Tracking for special moves:
+        castle_changed: True if this move chaned some ability to castle. (important for undo_move)
+    """
 
-    def __init__(self, r_from: int, c_from: int, r_to: int, c_to: int, piece=None, captured=None) -> None:
+    def __init__(self, r_from: int, c_from: int, r_to: int, c_to: int,
+            piece : Optional[str] = None,
+            captured : Optional[str] = None,
+            special : Optional[str] = None) -> None:
         self.r_from = r_from
         self.c_from = c_from
         self.r_to = r_to
         self.c_to = c_to
+        self.special = special
+        self.old_flags = {}  # filled in by do_move, for undoing later
 
         # optional and are filled in by the board when doing a move
         self.piece = piece
@@ -44,12 +55,18 @@ class Move(object):
         self.special = False
 
     def __str__(self) -> str:
+        if self.special is None:
+            special = ""
+        else:
+            special = " *{}*".format(self.special)
+
         if self.captured is None:
             capt = ""
         else:
             capt = " x {}".format(self.captured)
-        return "Move {} ({}, {}) -> ({}, {}) {}".format(
-            self.piece, self.r_from, self.c_from, self.r_to, self.c_to, capt
+
+        return "Move {} ({}, {}) -> ({}, {}) {} {}".format(
+            self.piece, self.r_from, self.c_from, self.r_to, self.c_to, capt, special
         )
 
     def __eq__(self, other) -> bool:
@@ -58,14 +75,27 @@ class Move(object):
 
 
 class ChessBoard(object):
+    """Class to represent a chessboard.
+    Board is represented by a 2D array + a piece set, which must be kept in sync.
+    Several extra flags store information for special moves that require info about the past, i.e. castling
+    """
     TURNS = ["white", "black"]
 
     def __init__(self):
         self.board = np.full(shape=(SIZE, SIZE), fill_value=".", dtype="<U1")
-        self.piece_set: Set[Tuple[str, int, int]] = set()
+        self.piece_set: Set[Tuple[str, int, int]] = set()  # caches pieces for speedup
+
+        # some special moves require past info of board state
+        self.flags = dict(
+            w_castle_left=True,
+            w_castle_right=True,
+            b_castle_left=True,
+            b_castle_right=True,
+            en_passant_spot=None # destination of en passant in the most recent move
+        )
+
         self.past_moves: Sequence[Tuple[Move, str]] = []
         self.turn = "white"
-        # TODO: store info to assess whether castling is still allowed, and en passant is still allowed
         self.set_pieces()
 
     def next_turn(self) -> str:
@@ -178,17 +208,10 @@ class ChessBoard(object):
                     dests.append((r2, c2))
         return dests
 
-    def _get_pawn_dests(self, r: int, c: int, player: str):
+    def _get_pawn_dests(self, r: int, c: int, player: str) -> Sequence[Tuple[int, int]]:
         """pawns are actually the most complex pieces on the board! Their moves:
         1. are asymmetric, 2. depend on their position, 3. depends on opponents 4. moves do not equal captures
         TODO: implement promoting"""
-
-        if player == "black":
-            my_piece = str.islower
-            other_piece = str.isupper
-        else:
-            my_piece = str.isupper
-            other_piece = str.islower
 
         pawn_jumps = []
         if player == "white":
@@ -213,8 +236,12 @@ class ChessBoard(object):
                     pawn_jumps.append((1, dc))
         return self._get_jumping_dests(r, c, player, pawn_jumps)
 
+    def _get_castle_dests(self, player : str) -> Sequence[Tuple[int, int]]:
+        """Returns any castle moves available to the current player"""
+        pass
+
     def get_dests_for_piece(self, r: int, c: int, piece=None) -> Sequence[Tuple[int, int]]:
-        """Given a particular piece, generates all possible destinatinos for it to move to.
+        """Given a particular piece, generates all possible destinations for it to move to.
         piece: optional param to override piece at board location
         TODO: filter destinations that would put us in check.
         Returns [(r,c),...]. """
@@ -266,21 +293,61 @@ class ChessBoard(object):
         # 1 find all my pieces. TODO: better to just maintain this as a second datastore?
         pieces = self.find_my_pieces(turn)
 
-        # generate possible moves
+        # generate possible normal moves
         all_moves = []
         for piece, r_from, c_from in pieces:
             for r_to, c_to in self.get_dests_for_piece(r_from, c_from):
                 move = Move(r_from, c_from, r_to, c_to, piece=piece)
                 all_moves.append(move)
 
+        # add special moves
+
         return all_moves
 
     def do_move(self, move: Move):
         """Do a move on the chessboard"""
-        piece = self.board[move.r_from, move.c_from]
-        captured = self.board[move.r_to, move.c_to]
+        piece = self.board[move.r_from, move.c_from]  # type: str
+        captured = self.board[move.r_to, move.c_to]  # type: str
         self.board[move.r_from, move.c_from] = "."
         self.board[move.r_to, move.c_to] = piece
+
+        # save current state of flags for undoing later
+        move.old_flags = deepcopy(self.flags)
+
+        # record info for future En Passant
+        if piece.lower() == "p" and abs(move.r_from - move.r_to) == 2:  # detect a double jump to enable en passant
+            self.flags["en_passant_spot"] = (move.r_to, move.c_to)
+        else:
+            self.flags["en_passant_spot"] = None  # clear
+
+        # record info for future Castling. TODO nicer way to encode this logic?
+        if piece == "k":
+            self.flags["b_castle_left"], self.flags["b_castle_right"] = False, False
+        elif piece == "K":
+            self.flags["w_castle_left"], self.flags["w_castle_right"] = False, False
+        elif piece == "r":
+            if move.c_from == 0 and move.r_from == 0:  # move from upper left
+                self.flags["b_castle_left"] = False
+            elif move.c_from == 7 and move.r_from == 0:  # move from upper right
+                self.flags["b_castle_right"] = False
+        elif piece == "R":
+            if move.c_from == 0 and move.r_from == 7:  # move from bottom left
+                self.flags["w_castle_left"] = False
+            elif move.c_from == 7 and move.r_from == 7:  # move from bottom right
+                self.flags["w_castle_right"] = False
+
+        # implement special moves
+        if move.special == "c":  # castle
+            pass
+        elif move.special == "e":  # en passant
+            pass
+        elif move.special in ["q", "n", "b", "r"]:  # promotion
+            if piece.isupper():
+                piece = move.special.upper()
+            else:
+                piece = move.special
+            self.board[move.r_to, move.c_to] = piece
+
         self.turn = self.next_turn()
 
         # update piece set datastructure
@@ -302,6 +369,24 @@ class ChessBoard(object):
         captured = move.captured
         self.board[move.r_from, move.c_from] = piece
         self.board[move.r_to, move.c_to] = captured
+
+        # undo recorded info needed for special moves.
+        self.flags = deepcopy(move.old_flags)
+
+        # special moves
+        if move.special == "c":  # castle
+            pass
+        elif move.special == "e":  # en passant
+            pass
+        elif move.special in ["q", "n", "b", "r"]:  # promotion
+            # demote back to a pawn :p
+            # NOTE that processing a promotion forward saves move.piece as the new piece
+            if piece.isupper():
+                piece = "P"
+            else:
+                piece = "p"
+        self.board[move.r_from, move.c_from] = piece
+
         self.turn = self.next_turn()
 
         # update piece set datastructure

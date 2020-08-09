@@ -278,29 +278,6 @@ def computer_player(board: ChessBoard, params: Dict = {}) -> Move:
     _, move = minmax(board, eval_chess_board, depth)
     return move
 
-# def get_all_players() -> Sequence[Player]:
-#     """Returns a list of all combinations of different player settings dicts"""
-#     all_players = []
-#     for branch_ratio in [1.0, .8, .6, .4, .2]:
-#         for depth in [3, 4, 5, 6, 7, 8]:
-#             # speed control:
-#             if depth == 6 and branch_ratio > .6:
-#                 continue
-#             if depth == 7 and branch_ratio > .4:
-#                 continue
-#             if depth == 8 and branch_ratio > .2:
-#                 continue
-
-#             # # construct a player function
-#             # def player(board : ChessBoard) -> Move:
-#             #     print((eval_fn, branch_ratio, depth))
-#             #     _, move = minmax(board, eval_fn, depth, explore_ratio=branch_ratio, min_branches=10)
-#             #     return move
-
-#             # all_players.append(player)
-
-#     return all_players
-
 
 def play_game(white_params={}, black_params={}, human=None, display=True):
     """Have the computer play itself.
