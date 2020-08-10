@@ -609,4 +609,67 @@ def test_minmax_3():
 
 def test_play():
     # just make sure this doesn't error
-    play_game(white_params={"depth":3}, black_params={"depth":2})
+    play_game(white_params={"depth":2}, black_params={"depth":2})
+
+
+def test_en_passant_flags():
+    b = ChessBoard()
+    m = Move(r_from=1, c_from=2, r_to=3, c_to=3)  # black pawn forward 2
+    b.do_move(m)
+    assert b.flags["en_passant_spot"] == (3,3), "should be available"
+
+    m = Move(r_from=1, c_from=3, r_to=2, c_to=3)  # black pawn forward 1
+    b.do_move(m)
+    assert b.flags["en_passant_spot"] == None, "should not be available"
+
+    m = Move(r_from=6, c_from=4, r_to=4, c_to=4)  # white pawn forward 2
+    b.do_move(m)
+    assert b.flags["en_passant_spot"] == (4,4), "should be available"
+
+    b.undo_move()
+    assert b.flags["en_passant_spot"] == None, "should not available after undo"
+
+def test_castle_flags():
+    b = ChessBoard()
+    b.board = np.array((
+        "r . . . k . . r".split(),
+        ". . . . p . . .".split(),
+        ". . . . . . . .".split(),
+        ". . . . . . . .".split(),
+        ". . . . . . . .".split(),
+        ". . . . . . . .".split(),
+        ". . . . P . . .".split(),
+        "R . . . K . . R".split(),
+    ))
+    b._reset_piece_set()
+
+    m = Move(r_from=6, c_from=4, r_to=4, c_to=4)  # just a pawn move
+    b.do_move(m)
+    assert all((
+        b.flags["b_castle_right"],
+        b.flags["b_castle_left"],
+        b.flags["w_castle_right"],
+        b.flags["w_castle_left"])), "all should start as true"
+
+    m = Move(r_from=0, c_from=0, r_to=0, c_to=1)  # move left black rook
+    b.do_move(m)
+    assert all((
+        b.flags["b_castle_right"],
+        not b.flags["b_castle_left"],
+        b.flags["w_castle_right"],
+        b.flags["w_castle_left"])), "black can't castle left"
+
+    m = Move(r_from=7, c_from=4, r_to=7, c_to=3)  # move white king
+    b.do_move(m)
+    assert all((
+        b.flags["b_castle_right"],
+        not b.flags["b_castle_left"],
+        not b.flags["w_castle_right"],
+        not b.flags["w_castle_left"])), "white can't castle at all now"
+
+    b.undo_move()
+    assert all((
+        b.flags["b_castle_right"],
+        not b.flags["b_castle_left"],
+        b.flags["w_castle_right"],
+        b.flags["w_castle_left"])), "back to normal after undo move"
