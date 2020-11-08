@@ -10,7 +10,7 @@ class HexBoard
 {
 private:
     int _size;
-    vector<vector<char>> _board_grid;
+    vector<vector<char>> _board_grid;  //[R][C]
     // add graph
 
 public:
