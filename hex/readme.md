@@ -5,12 +5,13 @@
 https://en.wikipedia.org/wiki/Hex_(board_game)
 
 ## Plan
+- [X] grid representation of hex board
+- [X] display the board
+- [X] player chooses their color.
+- [X] player picks their move
+- [X] tell whether the move was legal or not
+- [X] simple AI to make a move
 - [ ] graph representation of hex board
-- [ ] display the board
-- [ ] player chooses their color.
-- [ ] player picks their move
-- [ ] tell whether the move was legal or not
-- [ ] simple AI to make a move
 - [ ] check whether game is over
 
 ## Datastructure

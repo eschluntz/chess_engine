@@ -15,10 +15,13 @@ private:
 
 public:
     HexBoard(int size);
+    HexBoard(vector<vector<char>> board);
 
     void draw();
-    bool move(int color, int x, int y);
-    bool isOver();
+    bool move(char player, int r, int c);
+    void get_user_move(char player);
+    void get_computer_move(char player);
+    bool is_over();
 };
 
 #endif
