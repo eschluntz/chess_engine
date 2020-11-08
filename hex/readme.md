@@ -15,6 +15,9 @@ https://en.wikipedia.org/wiki/Hex_(board_game)
 - [ ] check whether game is over
 
 ## Datastructure
-- 2D vector to hold graph nodes
+- 2D vector grid to hold graph nodes
 - Graph data structure (adjacency list) to calculate connectivity
-  - each edge is also a node, so a winning board is detected by being able to find a path between the two edge nodes
+  - the 4 edges of the game board are also nodes, so a winning board is detected by being able to find a path between the two edge nodes
+  - node_id = column + _size * row
+  - node_ids of top, right, bottom, left = _size * _size + [0-3]
+  - vector <int (node_id)> -> vector of other node_ids it's connected to

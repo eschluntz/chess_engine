@@ -4,15 +4,28 @@
 #include <string>
 #include <limits>
 #include <assert.h>
+#include <boost/graph/graph_traits.hpp>
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/dijkstra_shortest_paths.hpp>
 #include "hexBoard.h"
 
 using namespace std;
+
+
+int HexBoard::rc_to_node(int row, int col)
+/* converts row and column of grid into node_id */
+{
+    return col + _size * row;
+}
+
 
 HexBoard::HexBoard(int size)
 /* Normal constructor */
 {
     _size = size;
+    int num_nodes = size * size + 4; // + 4 to include the 4 board sides as nodes
     _board_grid = vector<vector<char>>(size, vector<char> (size, '.'));
+    _board_graph = vector<vector<int>>(num_nodes, vector<int> ()); // no edges yet
 }
 
 HexBoard::HexBoard(vector<vector<char>> board)
@@ -20,6 +33,7 @@ HexBoard::HexBoard(vector<vector<char>> board)
 {
     _size = board.size();
     _board_grid = board;
+    // TODO init graph from a board
 
 }
 
