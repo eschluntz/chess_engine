@@ -89,9 +89,14 @@ Upon further thought, it will probably be easiest to generate possible moves at 
 ### Future Improvements
 
 1. Finish all special moves: en passant, promoting pawns, castling
-    [ ] ensure that move and board datastructures can support them
-    [ ] castle
+    [x] ensure that move and board datastructures can support them
+    [x] castle
     [ ] en passant
+        [ ] move generation
+        [ ] do move
+        [ ] undo move
+        [ ] human entry
+        [ ] tests
     [ ] promotion
 2. look for speedup opportunities, especially in move generation
     [X] [not actually faster] store store 2 piece sets, one for each side, instead of one and filtering it.

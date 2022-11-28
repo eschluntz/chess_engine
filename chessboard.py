@@ -24,6 +24,7 @@ W_CASTLE_LEFT = "w_castle_left"
 W_CASTLE_RIGHT = "w_castle_right"
 B_CASTLE_LEFT = "b_castle_left"
 B_CASTLE_RIGHT = "b_castle_right"
+EN_PASSANT_SPOT = "en_passant_spot"
 
 def inbound(r, c):
     """Checks if coords are in the board"""
@@ -58,6 +59,8 @@ class Move(object):
         self.piece = piece
         self.captured = captured
 
+    def __repr__(self) -> str:
+        return self.__str__()
 
     def __str__(self) -> str:
         if self.special is None:
@@ -209,7 +212,8 @@ class ChessBoard(object):
     def _get_pawn_dests(self, r: int, c: int, player: str) -> Sequence[Tuple[int, int]]:
         """pawns are actually the most complex pieces on the board! Their moves:
         1. are asymmetric, 2. depend on their position, 3. depends on opponents 4. moves do not equal captures
-        TODO: implement promoting"""
+        TODO: handle promoting
+        NOTE: en passant handled elsewhere"""
 
         pawn_jumps = []
         if player == "white":
@@ -265,6 +269,25 @@ class ChessBoard(object):
             if self.flags["b_castle_right"] \
                 and np.all(self.board[0,4:8] == list("k..r")):
                 moves.append(Move(0, 4, 0, 6, "k", special=B_CASTLE_RIGHT))
+        return moves
+    
+    def _get_en_passant_moves(self, player : str) -> Sequence[Move]:
+        """Generates special en passant moves"""
+        moves = []
+        if self.flags[EN_PASSANT_SPOT] is not None:
+            ep_r, ep_c = self.flags[EN_PASSANT_SPOT]
+            if player == "white":
+                if self.board[ep_r, ep_c + 1] == "P" and inbound(ep_r, ep_c + 1):  # white has pawn to right
+                    # TODO: bounds checking?
+                    moves.append(Move(ep_r, ep_c + 1, ep_r - 1, ep_c, "P", "p", "e"))
+                if self.board[ep_r, ep_c - 1] == "P" and inbound(ep_r, ep_c - 1):  # white has pawn to left
+                    moves.append(Move(ep_r, ep_c - 1, ep_r - 1, ep_c, "P", "p", "e"))
+            else:
+                if self.board[ep_r, ep_c + 1] == "p"  and inbound(ep_r, ep_c + 1):  # black has pawn to right
+                    # TODO: bounds checking?
+                    moves.append(Move(ep_r, ep_c + 1, ep_r + 1, ep_c, "p", "P", "e"))
+                if self.board[ep_r, ep_c - 1] == "p" and inbound(ep_r, ep_c - 1):  # black has pawn to left
+                    moves.append(Move(ep_r, ep_c - 1, ep_r + 1, ep_c, "p", "P", "e"))
         return moves
 
     def get_dests_for_piece(self, r: int, c: int, piece=None) -> Sequence[Tuple[int, int]]:
@@ -332,6 +355,7 @@ class ChessBoard(object):
         # add special moves
         all_moves.extend(self._get_castle_moves(turn))
         # all_moves.extend(self._get_promotion_moves(turn))
+        # all_moves.extend(self._get_promotion_moves(turn))
 
         return all_moves
     
@@ -354,6 +378,15 @@ class ChessBoard(object):
                 self.flags[W_CASTLE_LEFT] = False
             elif move.c_from == 7 and move.r_from == 7:  # move from bottom right
                 self.flags[W_CASTLE_RIGHT] = False
+    
+    def _update_en_passant_flags(self, move: Move):
+        """En passant is only available the turn immediately
+        after a double jump. We track availability with a flag"""
+        piece = move.piece
+        if piece.lower() == "p" and abs(move.r_from - move.r_to) == 2:  # detect a double jump to enable en passant
+            self.flags[EN_PASSANT_SPOT] = (move.r_to, move.c_to)
+        else:
+            self.flags[EN_PASSANT_SPOT] = None  # clear
 
     def do_move(self, move: Move):
         """Do a move on the chessboard"""
@@ -368,13 +401,8 @@ class ChessBoard(object):
         # save current state of flags for undoing later
         move.old_flags = deepcopy(self.flags)
 
-        # record info for future En Passant
-        if piece.lower() == "p" and abs(move.r_from - move.r_to) == 2:  # detect a double jump to enable en passant
-            self.flags["en_passant_spot"] = (move.r_to, move.c_to)
-        else:
-            self.flags["en_passant_spot"] = None  # clear
-
-        # record info for future Castling. If these pieces have moved at all, they can no longer castle.
+        # record state that effects special moves
+        self._update_en_passant_flags(move)
         self._update_castling_flags(move)
 
         # implement side effects for special moves

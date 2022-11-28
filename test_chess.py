@@ -7,6 +7,7 @@ import numpy as np
 
 from chessboard import (
     B_CASTLE_RIGHT,
+    EN_PASSANT_SPOT,
     ChessBoard,
     SIZE,
     Move,
@@ -563,6 +564,42 @@ def test_castling_moves():
     assert(len(b._get_castle_moves("black")) == 0)
     
 
+def test_en_passant_moves():
+    b = ChessBoard()
+    b.board = np.array(
+        (
+            ". . . k . . . .".split(),
+            ". . p . p . p p".split(),
+            ". . . . . . . .".split(),
+            "p p . . . . . P".split(),
+            ". . P p P p . .".split(),
+            ". . . . . . . .".split(),
+            "P P . P . P P .".split(),
+            ". . . . K . . .".split(),
+        )
+    )
+    b._sync_board_to_piece_set()
+    moves = b._get_en_passant_moves("white")
+    assert len(moves) == 0, "no en passant without flags set"
+    
+    b.flags[EN_PASSANT_SPOT] = (3, 0)
+    moves = b._get_en_passant_moves("white")
+    assert len(moves) == 0, "no available pieces"
+    
+    b.flags[EN_PASSANT_SPOT] = (4, 2)
+    moves = b._get_en_passant_moves("black")
+    expected = [Move(4, 3, 5, 2, "p", "P", "e")]
+    assert moves == expected, "ep available to left"
+    
+    b.flags[EN_PASSANT_SPOT] = (4, 4)
+    moves = b._get_en_passant_moves("black")
+    expected = [  # NOTE: fragile to move order. fix hashability so i can use set
+        Move(4, 5, 5, 4, "p", "P", "e"),
+        Move(4, 3, 5, 4, "p", "P", "e"),
+    ]
+    assert moves == expected, "two eps available"
+    
+
 def test_eval_chess_board():
     b = ChessBoard()
     assert (0.0, False) == eval_chess_board(b), "start board test"
@@ -788,6 +825,4 @@ def test_do_and_undo_castle():
     assert_row(0, "r...k..r")
     assert_row(7, "R...K..R")
     
-    
-
-test_do_and_undo_castle()
+test_en_passant_moves()
