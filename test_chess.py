@@ -6,9 +6,14 @@ import copy
 import numpy as np
 
 from chessboard import (
+    B_CASTLE_RIGHT,
     ChessBoard,
     SIZE,
     Move,
+    W_CASTLE_LEFT,
+    W_CASTLE_RIGHT,
+    B_CASTLE_LEFT,
+    B_CASTLE_RIGHT,
 )
 from chess import eval_chess_board, play_game
 from search import minmax
@@ -490,14 +495,73 @@ def test_perft_moves():
     moves = b.moves()
     # for move in moves:
     #     b.print_move(move)
-    assert len(moves) == 46  # TODO this should be 48 once castling is supported
+    assert len(moves) == 48
 
     b.turn = "black"
     moves = b.moves()
     # for move in moves:
     #     b.print_move(move)
-    assert len(moves) == 41  # TODO this should be 48 once castling is supported
+    assert len(moves) == 43
+    
 
+def test_castling_moves():
+    """Tests castling move generation.
+    NOTE: casting does not yet support checking for the king in check"""
+    b = ChessBoard()
+    b.board = np.array(
+        (
+            "r . . . k . . r".split(),
+            "p . p p q p b .".split(),
+            "b n . . p n p .".split(),
+            ". . . P N . . .".split(),
+            ". p . . P . . .".split(),
+            ". . N . . Q . p".split(),
+            "P P P B B P P P".split(),
+            "R . . . K . . R".split(),
+        )
+    )
+    b._sync_board_to_piece_set()
+    moves = b._get_castle_moves("white")
+    expected = [
+        Move(7, 4, 7, 2, "K", special="c"),
+        Move(7, 4, 7, 6, "K", special="c")
+    ]
+    assert(moves == expected)  # NOTE: this could be fragile to order changes
+    
+    moves = b._get_castle_moves("black")
+    expected = [
+        Move(0, 4, 0, 2, "k", special="c"),
+        Move(0, 4, 0, 6, "k", special="c")
+    ]
+    assert(moves == expected)  # NOTE: this could be fragile to order changes
+    
+    # set has_moved flags
+    b.flags[W_CASTLE_LEFT] = False
+    b.flags[W_CASTLE_RIGHT] = False
+    b.flags[B_CASTLE_LEFT] = False
+    b.flags[B_CASTLE_RIGHT] = False
+    
+    assert(len(b._get_castle_moves("white")) == 0)
+    assert(len(b._get_castle_moves("black")) == 0)
+    
+    # board 2 - blocked for various reasons
+    b = ChessBoard()
+    b.board = np.array(
+        (
+            "r . . k . . . r".split(),
+            "p p p p p p p p".split(),
+            ". . . . . . . .".split(),
+            ". . . . . . . .".split(),
+            ". . . . . . . .".split(),
+            ". . . . . . . .".split(),
+            "P P P P P P P P".split(),
+            ". . . . K . N R".split(),
+        )
+    )
+    b._sync_board_to_piece_set()
+    assert(len(b._get_castle_moves("white")) == 0)
+    assert(len(b._get_castle_moves("black")) == 0)
+    
 
 def test_eval_chess_board():
     b = ChessBoard()
@@ -673,3 +737,57 @@ def test_castle_flags():
         not b.flags["b_castle_left"],
         b.flags["w_castle_right"],
         b.flags["w_castle_left"])), "back to normal after undo move"
+
+
+def test_do_and_undo_castle():
+    def assert_row(row, expected):
+        assert("".join(b.board[row]) == expected)
+        
+    b = ChessBoard()
+    b.board = np.array((
+        "r . . . k . . r".split(),
+        ". . . . p . . .".split(),
+        ". . . . . . . .".split(),
+        ". . . . . . . .".split(),
+        ". . . . . . . .".split(),
+        ". . . . . . . .".split(),
+        ". . . . P . . .".split(),
+        "R . . . K . . R".split(),
+    ))
+    b._sync_board_to_piece_set()
+    
+    m = Move(7, 4, 7, 6, special=W_CASTLE_RIGHT)
+    b.do_move(m)
+    assert_row(0, "r...k..r")
+    assert_row(7, "R....RK.")
+    b.undo_move()
+    assert_row(0, "r...k..r")
+    assert_row(7, "R...K..R")
+    
+    m = Move(7, 4, 7, 2, special=W_CASTLE_LEFT)
+    b.do_move(m)
+    assert_row(0, "r...k..r")
+    assert_row(7, "..KR...R")
+    b.undo_move()
+    assert_row(0, "r...k..r")
+    assert_row(7, "R...K..R")
+    
+    m = Move(0, 4, 0, 6, special=B_CASTLE_RIGHT)
+    b.do_move(m)
+    assert_row(0, "r....rk.")
+    assert_row(7, "R...K..R")
+    b.undo_move()
+    assert_row(0, "r...k..r")
+    assert_row(7, "R...K..R")
+    
+    m = Move(0, 4, 0, 2, special=B_CASTLE_LEFT)
+    b.do_move(m)
+    assert_row(0, "..kr...r")
+    assert_row(7, "R...K..R")
+    b.undo_move()
+    assert_row(0, "r...k..r")
+    assert_row(7, "R...K..R")
+    
+    
+
+test_do_and_undo_castle()

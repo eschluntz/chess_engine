@@ -20,7 +20,10 @@ SIZE = 8
 WHITE_PIECES = ["P", "R", "N", "B", "K", "Q"]
 BLACK_PIECES = [p.lower() for p in WHITE_PIECES]
 ALL_PIECES = WHITE_PIECES + BLACK_PIECES
-
+W_CASTLE_LEFT = "w_castle_left"
+W_CASTLE_RIGHT = "w_castle_right"
+B_CASTLE_LEFT = "b_castle_left"
+B_CASTLE_RIGHT = "b_castle_right"
 
 def inbound(r, c):
     """Checks if coords are in the board"""
@@ -36,6 +39,8 @@ class Move(object):
     Tracking for special moves:
         castle_changed: True if this move changed some ability to castle. (important for undo_move)
         castling: use the movement of the king as the to/from fields to distinguish which castle
+        
+    TODO: why isn't this hashable?
     """
 
     def __init__(self, r_from: int, c_from: int, r_to: int, c_to: int,
@@ -71,6 +76,7 @@ class Move(object):
 
     def __eq__(self, other) -> bool:
         """Note: only compares to and from positions, not piece or capture"""
+
         return (self.r_from, self.c_from, self.r_to, self.c_to) == (other.r_from, other.c_from, other.r_to, other.c_to)
 
 
@@ -228,9 +234,38 @@ class ChessBoard(object):
                     pawn_jumps.append((1, dc))
         return self._get_jumping_dests(r, c, player, pawn_jumps)
 
-    def _get_castle_dests(self, player : str) -> Sequence[Tuple[int, int]]:
-        """Returns any castle moves available to the current player"""
-        pass
+    def _get_castle_moves(self, player : str) -> Sequence[Move]:
+        """Returns any castle moves available to the current player.
+        NOTES:
+        - king always moves 2 places
+        - castling is only valid IF
+            - neither the king nor the rook have moved so far
+                - marked by flags on the board
+            - king and rook still exist
+                - checked here, by row slice
+            - open space between them
+                - checked here, by row slice
+            - king does not CROSS check
+                - TODO
+            - king is not IN check
+                - TODO
+        """
+        moves = []
+        if player == "white":
+            if self.flags["w_castle_left"] \
+                and np.all(self.board[7,0:5] == list("R...K")):
+                moves.append(Move(7, 4, 7, 2, "K", special=W_CASTLE_LEFT))
+            if self.flags["w_castle_right"] \
+                and np.all(self.board[7,4:8] == list("K..R")):
+                moves.append(Move(7, 4, 7, 6, "K", special=W_CASTLE_RIGHT))
+        else:
+            if self.flags["b_castle_left"] \
+                and np.all(self.board[0,0:5] == list("r...k")):
+                moves.append(Move(0, 4, 0, 2, "k", special=B_CASTLE_LEFT))
+            if self.flags["b_castle_right"] \
+                and np.all(self.board[0,4:8] == list("k..r")):
+                moves.append(Move(0, 4, 0, 6, "k", special=B_CASTLE_RIGHT))
+        return moves
 
     def get_dests_for_piece(self, r: int, c: int, piece=None) -> Sequence[Tuple[int, int]]:
         """Given a particular piece, generates all possible destinations for it to move to.
@@ -281,24 +316,51 @@ class ChessBoard(object):
         """returns a list of all possible moves given the current board state and turn.
         turn: "white" or "black" or None, to use the current turn
         Returns a list of Move Objects."""
-
-        # 1 find all my pieces. TODO: better to just maintain this as a second datastore?
+        if turn is None:
+            turn = self.turn
         pieces = self.find_my_pieces(turn)
 
         # generate possible normal moves
         all_moves = []
         for piece, r_from, c_from in pieces:
             for r_to, c_to in self.get_dests_for_piece(r_from, c_from):
+                
+                # convert destinations into moves
                 move = Move(r_from, c_from, r_to, c_to, piece=piece)
                 all_moves.append(move)
 
         # add special moves
+        all_moves.extend(self._get_castle_moves(turn))
+        # all_moves.extend(self._get_promotion_moves(turn))
 
         return all_moves
+    
+    def _update_castling_flags(self, move: Move):
+        """Whether you're allowed to castle is NOT markov with the board state. Once a king or
+        rook has moved once, it cannot castle, even
+        if it moves back. We track these with flags"""
+        piece = move.piece
+        if piece == "k":
+            self.flags[B_CASTLE_LEFT], self.flags[B_CASTLE_RIGHT] = False, False
+        elif piece == "K":
+            self.flags[W_CASTLE_LEFT], self.flags[W_CASTLE_RIGHT] = False, False
+        elif piece == "r":
+            if move.c_from == 0 and move.r_from == 0:  # move from upper left
+                self.flags[B_CASTLE_LEFT] = False
+            elif move.c_from == 7 and move.r_from == 0:  # move from upper right
+                self.flags[B_CASTLE_RIGHT] = False
+        elif piece == "R":
+            if move.c_from == 0 and move.r_from == 7:  # move from bottom left
+                self.flags[W_CASTLE_LEFT] = False
+            elif move.c_from == 7 and move.r_from == 7:  # move from bottom right
+                self.flags[W_CASTLE_RIGHT] = False
 
     def do_move(self, move: Move):
         """Do a move on the chessboard"""
+        
+        # move the piece
         piece = self.board[move.r_from, move.c_from]  # type: str
+        move.piece = piece
         captured = self.board[move.r_to, move.c_to]  # type: str
         self.board[move.r_from, move.c_from] = "."
         self.board[move.r_to, move.c_to] = piece
@@ -312,27 +374,24 @@ class ChessBoard(object):
         else:
             self.flags["en_passant_spot"] = None  # clear
 
-        # record info for future Castling. TODO nicer way to encode this logic?
-        if piece == "k":
-            self.flags["b_castle_left"], self.flags["b_castle_right"] = False, False
-        elif piece == "K":
-            self.flags["w_castle_left"], self.flags["w_castle_right"] = False, False
-        elif piece == "r":
-            if move.c_from == 0 and move.r_from == 0:  # move from upper left
-                self.flags["b_castle_left"] = False
-            elif move.c_from == 7 and move.r_from == 0:  # move from upper right
-                self.flags["b_castle_right"] = False
-        elif piece == "R":
-            if move.c_from == 0 and move.r_from == 7:  # move from bottom left
-                self.flags["w_castle_left"] = False
-            elif move.c_from == 7 and move.r_from == 7:  # move from bottom right
-                self.flags["w_castle_right"] = False
+        # record info for future Castling. If these pieces have moved at all, they can no longer castle.
+        self._update_castling_flags(move)
 
-        # implement special moves
-        if move.special == "c":  # castle
-            pass
+        # implement side effects for special moves
+        if move.special == W_CASTLE_LEFT:
+            self.board[7,0] = "."
+            self.board[7,3] = "R"
+        elif move.special == W_CASTLE_RIGHT:
+            self.board[7,7] = "."
+            self.board[7,5] = "R"
+        elif move.special == B_CASTLE_LEFT:
+            self.board[0,0] = "."
+            self.board[0,3] = "r"
+        elif move.special == B_CASTLE_RIGHT:
+            self.board[0,7] = "."
+            self.board[0,5] = "r"
         elif move.special == "e":  # en passant
-            pass
+            pass # TODO
         elif move.special in ["q", "n", "b", "r"]:  # promotion
             if piece.isupper():
                 piece = move.special.upper()
@@ -343,15 +402,10 @@ class ChessBoard(object):
         self.turn = self.next_turn()
 
         # update piece set datastructure
-        self.piece_set.remove((piece, move.r_from, move.c_from))
-        if captured != ".":
-            self.piece_set.remove((captured, move.r_to, move.c_to))
-        self.piece_set.add((piece, move.r_to, move.c_to))
+        self._sync_board_to_piece_set()  # TODO: much slower than tracking explicitly?
             
-
         # save move
         move.captured = captured
-        move.piece = piece
         self.past_moves.append(move)
 
     def undo_move(self):
@@ -367,8 +421,18 @@ class ChessBoard(object):
         self.flags = deepcopy(move.old_flags)
 
         # special moves
-        if move.special == "c":  # castle
-            pass
+        if move.special == W_CASTLE_LEFT:
+            self.board[7,0] = "R"
+            self.board[7,3] = "."
+        elif move.special == W_CASTLE_RIGHT:
+            self.board[7,7] = "R"
+            self.board[7,5] = "."
+        elif move.special == B_CASTLE_LEFT:
+            self.board[0,0] = "r"
+            self.board[0,3] = "."
+        elif move.special == B_CASTLE_RIGHT:
+            self.board[0,7] = "r"
+            self.board[0,5] = "."
         elif move.special == "e":  # en passant
             pass
         elif move.special in ["q", "n", "b", "r"]:  # promotion
@@ -383,12 +447,8 @@ class ChessBoard(object):
         self.turn = self.next_turn()
 
         # update piece set datastructure
-        self.piece_set.add((piece, move.r_from, move.c_from))
-        if captured != ".":
-            self.piece_set.add((captured, move.r_to, move.c_to))
-        self.piece_set.remove((piece, move.r_to, move.c_to))
+        self._sync_board_to_piece_set()  # TODO: much slower than tracking explicitly?
         
-
     def print_move(self, move: Move):
         """Graphically represents a move"""
         print(move)

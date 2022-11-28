@@ -9,7 +9,16 @@ import functools
 import numpy as np
 
 from search import minmax, iterative_deepening
-from chessboard import Move, ChessBoard, SIZE, ALL_PIECES
+from chessboard import (
+    W_CASTLE_LEFT, 
+    W_CASTLE_RIGHT, 
+    B_CASTLE_LEFT,
+    B_CASTLE_RIGHT,
+    Move, 
+    ChessBoard, 
+    SIZE, 
+    ALL_PIECES,
+)
 
 
 ##################
@@ -242,7 +251,7 @@ def human_player(board: ChessBoard) -> Move:
             r_from = _rank_to_row(uci_str[1])
             c_to = _file_to_column(uci_str[2])
             r_to = _rank_to_row(uci_str[3])
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, IndexError):
             print("Invalid move input")
             print("Please enter moves in UCI format: rank_from file_from rank_to file_to")
             print("i.e. e2 e4")
@@ -251,7 +260,19 @@ def human_player(board: ChessBoard) -> Move:
         # see if engine agrees it was a valid move
         piece = board.board[r_from, c_from]
         captured = board.board[r_to, c_to]
-        move = Move(r_from, c_from, r_to, c_to, piece, captured)
+        
+        # detect castling
+        special = None
+        if piece == "K" and c_from == 4 and c_to == 2:
+            special = W_CASTLE_LEFT
+        elif piece == "K" and c_from == 4 and c_to == 6:
+            special = W_CASTLE_RIGHT
+        if piece == "k" and c_from == 4 and c_to == 2:
+            special = B_CASTLE_LEFT
+        elif piece == "k" and c_from == 4 and c_to == 6:
+            special = B_CASTLE_RIGHT
+            
+        move = Move(r_from, c_from, r_to, c_to, piece, captured, special)
         if move not in possible_moves:
             print("Illegal move!")
             board.print_move(move)
@@ -339,7 +360,7 @@ def time_test():
 
 if __name__ == "__main__":
 
-    time_test()
-    # play_game(human="white")
+    # time_test()
+    play_game(human="white")
 
     # play_game(white_params={"depth":3})
