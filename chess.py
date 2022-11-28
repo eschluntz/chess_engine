@@ -142,7 +142,9 @@ def _get_piece_tables() -> Dict:
 
 def eval_game_over(board: ChessBoard) -> Tuple[int, bool]:
     """Returns (score, game_over).
-    white win -> positive."""
+    white win -> positive.
+    black win -> negative
+    draw -> 0"""
 
     # look for 3 fold repetition tie
     if len(board.past_moves) >= 10:
@@ -326,7 +328,7 @@ def time_test():
             "R . . . K . . R".split(),
         )
     )
-    b._reset_piece_set()
+    b._sync_board_to_piece_set()
     import time
 
     t0 = time.time()
@@ -337,6 +339,7 @@ def time_test():
 
 if __name__ == "__main__":
 
-    # time_test()
-    play_game(human="white")
+    time_test()
+    # play_game(human="white")
+
     # play_game(white_params={"depth":3})

@@ -34,7 +34,8 @@ class Move(object):
         e: en passant
         q,n,b,r: promotion to that piece
     Tracking for special moves:
-        castle_changed: True if this move chaned some ability to castle. (important for undo_move)
+        castle_changed: True if this move changed some ability to castle. (important for undo_move)
+        castling: use the movement of the king as the to/from fields to distinguish which castle
     """
 
     def __init__(self, r_from: int, c_from: int, r_to: int, c_to: int,
@@ -52,7 +53,6 @@ class Move(object):
         self.piece = piece
         self.captured = captured
 
-        self.special = False
 
     def __str__(self) -> str:
         if self.special is None:
@@ -83,7 +83,7 @@ class ChessBoard(object):
 
     def __init__(self):
         self.board = np.full(shape=(SIZE, SIZE), fill_value=".", dtype="<U1")
-        self.piece_set: Set[Tuple[str, int, int]] = set()  # caches pieces for speedup
+        self.piece_set: Set[Tuple[str, int, int]] = set()  # caches pieces for speedup. (piece, row, column?)
 
         # some special moves require past info of board state
         self.flags = dict(
@@ -91,12 +91,12 @@ class ChessBoard(object):
             w_castle_right=True,
             b_castle_left=True,
             b_castle_right=True,
-            en_passant_spot=None # destination of en passant in the most recent move
+            en_passant_spot=None # destination of en passant in the most recent move. # TODO: do i need this in the board?
         )
 
         self.past_moves: Sequence[Tuple[Move, str]] = []
         self.turn = "white"
-        self.set_pieces()
+        self.set_starting_pieces()
 
     def next_turn(self) -> str:
         """Returns "white" or "black whichever is not our current turn"""
@@ -105,7 +105,7 @@ class ChessBoard(object):
         else:
             return "white"
 
-    def _reset_piece_set(self) -> None:
+    def _sync_board_to_piece_set(self) -> None:
         """Sets the piece list from the ground truth of the board"""
         self.piece_set = set()
         for r in range(SIZE):
@@ -113,13 +113,13 @@ class ChessBoard(object):
                 p = self.board[r, c]
                 if p != ".":
                     self.piece_set.add((p, r, c))
-
+                        
     def clear_pieces(self) -> None:
         """Remove all pieces from the board"""
         self.board = np.full(shape=(SIZE, SIZE), fill_value=".", dtype="<U1")
-        self._reset_piece_set()
+        self._sync_board_to_piece_set()
 
-    def set_pieces(self) -> None:
+    def set_starting_pieces(self) -> None:
         """Places all the pieces on the board.
         white pieces: UPPER-CASE
         black pieces: lower-case
@@ -138,7 +138,7 @@ class ChessBoard(object):
         self.board[6] = np.array([p.upper() for p in front_row])
         self.board[7] = np.array([p.upper() for p in back_row])
 
-        self._reset_piece_set()
+        self._sync_board_to_piece_set()
 
     def find_my_pieces(self, turn=None) -> Sequence[Tuple[str, int, int]]:
         """Returns a list of all the current player's pieces and their locations.
@@ -154,14 +154,6 @@ class ChessBoard(object):
 
         return [x for x in self.piece_set if my_piece(x[0])]
 
-        # pieces = []
-
-        # for r in range(SIZE):
-        #     for c in range(SIZE):
-        #         if my_piece(self.board[r, c]):
-        #             pieces.append((self.board[r, c], r, c))
-
-        # return pieces
 
     def _get_sliding_dests(
         self, r: int, c: int, player: str, steps: Sequence[Tuple[int, int]], max_steps=SIZE
@@ -355,6 +347,7 @@ class ChessBoard(object):
         if captured != ".":
             self.piece_set.remove((captured, move.r_to, move.c_to))
         self.piece_set.add((piece, move.r_to, move.c_to))
+            
 
         # save move
         move.captured = captured
@@ -394,6 +387,7 @@ class ChessBoard(object):
         if captured != ".":
             self.piece_set.add((captured, move.r_to, move.c_to))
         self.piece_set.remove((piece, move.r_to, move.c_to))
+        
 
     def print_move(self, move: Move):
         """Graphically represents a move"""

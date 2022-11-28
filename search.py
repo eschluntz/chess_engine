@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import numpy as np
+import time
 
 TRANSPOSITION_TABLE = {}
 # Maps (board+depth) -> score to avoid repeated work and improve move ordering
@@ -69,7 +70,7 @@ def minmax(board, eval_fn, max_depth, alpha=-np.inf, beta=np.inf, params={}):
         score, _ = eval_fn(board, params)
         board.undo_move()
         return score
-    all_moves.sort(key=score_move_heuristic, reverse=(board.turn in ["white", "x"]))  # TODO: fix white / x
+    all_moves.sort(key=score_move_heuristic, reverse=(board.turn in ["white", "x"]))  # TODO: generalize white / x to any game
 
     # we've already sorted, just return now (10% speedup)
     if max_depth == 1:

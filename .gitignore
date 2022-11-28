@@ -3,3 +3,4 @@
 *.prof
 .coverage
 env/
+.python-version
