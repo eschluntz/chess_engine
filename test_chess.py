@@ -20,6 +20,12 @@ from chess import eval_chess_board, play_game
 from search import minmax
 
 
+
+def assert_row(b, row, expected):
+    actual = "".join(b.board[row])
+    assert(actual == expected)
+
+
 def test_setup_and_print():
     b = ChessBoard()
     out = str(b)
@@ -777,9 +783,6 @@ def test_castle_flags():
 
 
 def test_do_and_undo_castle():
-    def assert_row(row, expected):
-        assert("".join(b.board[row]) == expected)
-        
     b = ChessBoard()
     b.board = np.array((
         "r . . . k . . r".split(),
@@ -795,34 +798,88 @@ def test_do_and_undo_castle():
     
     m = Move(7, 4, 7, 6, special=W_CASTLE_RIGHT)
     b.do_move(m)
-    assert_row(0, "r...k..r")
-    assert_row(7, "R....RK.")
+    assert_row(b, 0, "r...k..r")
+    assert_row(b, 7, "R....RK.")
     b.undo_move()
-    assert_row(0, "r...k..r")
-    assert_row(7, "R...K..R")
+    assert_row(b, 0, "r...k..r")
+    assert_row(b, 7, "R...K..R")
     
     m = Move(7, 4, 7, 2, special=W_CASTLE_LEFT)
     b.do_move(m)
-    assert_row(0, "r...k..r")
-    assert_row(7, "..KR...R")
+    assert_row(b, 0, "r...k..r")
+    assert_row(b, 7, "..KR...R")
     b.undo_move()
-    assert_row(0, "r...k..r")
-    assert_row(7, "R...K..R")
+    assert_row(b, 0, "r...k..r")
+    assert_row(b, 7, "R...K..R")
     
     m = Move(0, 4, 0, 6, special=B_CASTLE_RIGHT)
     b.do_move(m)
-    assert_row(0, "r....rk.")
-    assert_row(7, "R...K..R")
+    assert_row(b, 0, "r....rk.")
+    assert_row(b, 7, "R...K..R")
     b.undo_move()
-    assert_row(0, "r...k..r")
-    assert_row(7, "R...K..R")
+    assert_row(b, 0, "r...k..r")
+    assert_row(b, 7, "R...K..R")
     
     m = Move(0, 4, 0, 2, special=B_CASTLE_LEFT)
     b.do_move(m)
-    assert_row(0, "..kr...r")
-    assert_row(7, "R...K..R")
+    assert_row(b, 0, "..kr...r")
+    assert_row(b, 7, "R...K..R")
     b.undo_move()
-    assert_row(0, "r...k..r")
-    assert_row(7, "R...K..R")
+    assert_row(b, 0, "r...k..r")
+    assert_row(b, 7, "R...K..R")
     
-test_en_passant_moves()
+
+def test_do_and_undo_en_passant():
+    b = ChessBoard()
+    b.board = np.array((
+        ". . . k . . . .".split(),
+        ". . p . p . . p".split(),
+        ". . . . . . . .".split(),
+        "p p . . . . p P".split(),
+        ". . P p P p . .".split(),
+        ". . . . . . . .".split(),
+        "P P . P . P P .".split(),
+        ". . . . K . . .".split(),
+    ))
+    b._sync_board_to_piece_set()
+    b.turn = "black"
+    
+    # black takes with d4
+    b.flags[EN_PASSANT_SPOT] = (4, 2)
+    m = Move(4, 3, 5, 2, special="e")
+    b.do_move(m)
+    assert_row(b, 4, "....Pp..")
+    assert_row(b, 5, "..p.....")
+    assert b.flags[EN_PASSANT_SPOT] is None, "flags cleared"
+    b.undo_move()
+    assert_row(b, 4, "..PpPp..")
+    assert_row(b, 5, "........")
+    assert b.flags[EN_PASSANT_SPOT] == (4, 2), "flags reset"
+    
+    # black takes right with d4
+    b.turn = "black"
+    b.flags[EN_PASSANT_SPOT] = (4, 4)
+    m = Move(4, 3, 5, 4, special="e")
+    b.do_move(m)
+    assert_row(b, 4, "..P..p..")
+    assert_row(b, 5, "....p...")
+    assert b.flags[EN_PASSANT_SPOT] is None, "flags cleared"
+    b.undo_move()
+    assert_row(b, 4, "..PpPp..")
+    assert_row(b, 5, "........")
+    assert b.flags[EN_PASSANT_SPOT] == (4, 4), "flags reset"
+
+    # white takes with h5
+    b.turn = "white"
+    b.flags[EN_PASSANT_SPOT] = (3, 6)
+    m = Move(3, 7, 2, 6, special="e")
+    b.do_move(m)
+    assert_row(b, 2, "......P.")
+    assert_row(b, 3, "pp......")
+    assert b.flags[EN_PASSANT_SPOT] is None, "flags cleared"
+    b.undo_move()
+    assert_row(b, 4, "..PpPp..")
+    assert_row(b, 5, "........")
+    assert b.flags[EN_PASSANT_SPOT] == (3, 6), "flags reset"
+
+test_do_and_undo_en_passant()

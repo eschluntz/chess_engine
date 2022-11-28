@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 
-import time
 from typing import Dict, List, Tuple, Sequence, Set, Callable, TypeVar, Optional
 from copy import deepcopy
 from termcolor import colored
-import functools
 
 import numpy as np
 
 from search import minmax, iterative_deepening
 from chessboard import (
+    EN_PASSANT_SPOT,
     W_CASTLE_LEFT, 
     W_CASTLE_RIGHT, 
     B_CASTLE_LEFT,
@@ -271,6 +270,10 @@ def human_player(board: ChessBoard) -> Move:
             special = B_CASTLE_LEFT
         elif piece == "k" and c_from == 4 and c_to == 6:
             special = B_CASTLE_RIGHT
+        # detect en passant
+        elif piece.lower() == "p" and c_from != c_to and captured == ".":
+            # pawn moved diagonally without landing on a piece
+            special = EN_PASSANT_SPOT
             
         move = Move(r_from, c_from, r_to, c_to, piece, captured, special)
         if move not in possible_moves:
@@ -297,7 +300,7 @@ def computer_player(board: ChessBoard, params: Dict = {}) -> Move:
             mobility: bool to include mobility in the score
     """
 
-    depth = params.get("depth", 5)
+    depth = params.get("depth", 4)
     _, move = minmax(board, eval_chess_board, depth)
     return move
 
@@ -334,33 +337,7 @@ def play_game(white_params={}, black_params={}, human=None, display=True):
     return score, board
 
 
-def time_test():
-    """Time a move search"""
-    b = ChessBoard()
-    b.board = np.array(
-        (
-            "r . . . k . . r".split(),
-            "p . p p q p b .".split(),
-            "b n . . p n p .".split(),
-            ". . . P N . . .".split(),
-            ". p . . P . . .".split(),
-            ". . N . . Q . p".split(),
-            "P P P B B P P P".split(),
-            "R . . . K . . R".split(),
-        )
-    )
-    b._sync_board_to_piece_set()
-    import time
-
-    t0 = time.time()
-    _, move = minmax(b, eval_chess_board, 4)
-    t1 = time.time()
-    print(t1 - t0)
-
-
 if __name__ == "__main__":
-
-    # time_test()
     play_game(human="white")
 
     # play_game(white_params={"depth":3})

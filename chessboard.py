@@ -139,13 +139,14 @@ class ChessBoard(object):
         knight: n
         rook:   r
         """
-        back_row = ["r", "n", "b", "q", "k", "b", "n", "r"]
+        back_row = [".", ".", ".", ".", "k", ".", ".", "."]
         front_row = ["p"] * 8
 
         self.board[0] = np.array(back_row)
         self.board[1] = np.array(front_row)
         self.board[6] = np.array([p.upper() for p in front_row])
         self.board[7] = np.array([p.upper() for p in back_row])
+        
 
         self._sync_board_to_piece_set()
 
@@ -277,17 +278,17 @@ class ChessBoard(object):
         if self.flags[EN_PASSANT_SPOT] is not None:
             ep_r, ep_c = self.flags[EN_PASSANT_SPOT]
             if player == "white":
-                if self.board[ep_r, ep_c + 1] == "P" and inbound(ep_r, ep_c + 1):  # white has pawn to right
+                if inbound(ep_r, ep_c + 1) and self.board[ep_r, ep_c + 1] == "P":  # white has pawn to right
                     # TODO: bounds checking?
-                    moves.append(Move(ep_r, ep_c + 1, ep_r - 1, ep_c, "P", "p", "e"))
-                if self.board[ep_r, ep_c - 1] == "P" and inbound(ep_r, ep_c - 1):  # white has pawn to left
-                    moves.append(Move(ep_r, ep_c - 1, ep_r - 1, ep_c, "P", "p", "e"))
+                    moves.append(Move(ep_r, ep_c + 1, ep_r - 1, ep_c, "P", ".", "e"))
+                if inbound(ep_r, ep_c - 1) and self.board[ep_r, ep_c - 1] == "P":  # white has pawn to left
+                    moves.append(Move(ep_r, ep_c - 1, ep_r - 1, ep_c, "P", ".", "e"))
             else:
-                if self.board[ep_r, ep_c + 1] == "p"  and inbound(ep_r, ep_c + 1):  # black has pawn to right
+                if inbound(ep_r, ep_c + 1) and self.board[ep_r, ep_c + 1] == "p":  # black has pawn to right
                     # TODO: bounds checking?
-                    moves.append(Move(ep_r, ep_c + 1, ep_r + 1, ep_c, "p", "P", "e"))
-                if self.board[ep_r, ep_c - 1] == "p" and inbound(ep_r, ep_c - 1):  # black has pawn to left
-                    moves.append(Move(ep_r, ep_c - 1, ep_r + 1, ep_c, "p", "P", "e"))
+                    moves.append(Move(ep_r, ep_c + 1, ep_r + 1, ep_c, "p", ".", "e"))
+                if inbound(ep_r, ep_c - 1) and self.board[ep_r, ep_c - 1] == "p":  # black has pawn to left
+                    moves.append(Move(ep_r, ep_c - 1, ep_r + 1, ep_c, "p", ".", "e"))
         return moves
 
     def get_dests_for_piece(self, r: int, c: int, piece=None) -> Sequence[Tuple[int, int]]:
@@ -354,7 +355,7 @@ class ChessBoard(object):
 
         # add special moves
         all_moves.extend(self._get_castle_moves(turn))
-        # all_moves.extend(self._get_promotion_moves(turn))
+        all_moves.extend(self._get_en_passant_moves(turn))
         # all_moves.extend(self._get_promotion_moves(turn))
 
         return all_moves
@@ -419,7 +420,10 @@ class ChessBoard(object):
             self.board[0,7] = "."
             self.board[0,5] = "r"
         elif move.special == "e":  # en passant
-            pass # TODO
+            if self.turn == "white":
+                self.board[move.r_to + 1, move.c_to] = "."
+            else:
+                self.board[move.r_to - 1, move.c_to] = "."
         elif move.special in ["q", "n", "b", "r"]:  # promotion
             if piece.isupper():
                 piece = move.special.upper()
@@ -462,7 +466,10 @@ class ChessBoard(object):
             self.board[0,7] = "r"
             self.board[0,5] = "."
         elif move.special == "e":  # en passant
-            pass
+            if self.turn == "black": # NOTE: careful, this is reverse, because the turn has not yet flipped back
+                self.board[move.r_to + 1, move.c_to] = "p"
+            else:
+                self.board[move.r_to - 1, move.c_to] = "P"
         elif move.special in ["q", "n", "b", "r"]:  # promotion
             # demote back to a pawn :p
             # NOTE that processing a promotion forward saves move.piece as the new piece
