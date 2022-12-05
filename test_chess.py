@@ -528,19 +528,19 @@ def test_castling_moves():
         )
     )
     b._sync_board_to_piece_set()
-    moves = b._get_castle_moves("white")
-    expected = [
-        Move(7, 4, 7, 2, "K", special="c"),
-        Move(7, 4, 7, 6, "K", special="c")
-    ]
-    assert(moves == expected)  # NOTE: this could be fragile to order changes
+    moves = set(b._get_castle_moves("white"))
+    expected = {
+        Move(7, 4, 7, 2, "K", special=W_CASTLE_LEFT),
+        Move(7, 4, 7, 6, "K", special=W_CASTLE_RIGHT)
+    }
+    assert(moves == expected)
     
-    moves = b._get_castle_moves("black")
-    expected = [
-        Move(0, 4, 0, 2, "k", special="c"),
-        Move(0, 4, 0, 6, "k", special="c")
-    ]
-    assert(moves == expected)  # NOTE: this could be fragile to order changes
+    moves = set(b._get_castle_moves("black"))
+    expected = {
+        Move(0, 4, 0, 2, "k", special=B_CASTLE_LEFT),
+        Move(0, 4, 0, 6, "k", special=B_CASTLE_RIGHT)
+    }
+    assert(moves == expected)
     
     # set has_moved flags
     b.w_castle_left_flag = False
@@ -594,15 +594,15 @@ def test_en_passant_moves():
     
     b.en_passant_spot = (4, 2)
     moves = b._get_en_passant_moves("black")
-    expected = [Move(4, 3, 5, 2, "p", "P", "e")]
+    expected = [Move(4, 3, 5, 2, "p", ".", "e")]
     assert moves == expected, "ep available to left"
     
     b.en_passant_spot = (4, 4)
-    moves = b._get_en_passant_moves("black")
-    expected = [  # NOTE: fragile to move order. fix hashability so i can use set
-        Move(4, 5, 5, 4, "p", "P", "e"),
-        Move(4, 3, 5, 4, "p", "P", "e"),
-    ]
+    moves = set(b._get_en_passant_moves("black"))
+    expected = {
+        Move(4, 5, 5, 4, "p", ".", "e"),
+        Move(4, 3, 5, 4, "p", ".", "e"),
+    }
     assert moves == expected, "two eps available"
     
 
@@ -636,11 +636,13 @@ def test_minmax_1():
     _, move = minmax(b, eval_chess_board, 1)
     expected = Move(1, 4, 2, 4, piece="k", captured="Q")
     b.print_move(move)
+    move.old_flags = None
     assert move == expected
 
     _, move = minmax(b, eval_chess_board, 4)
     expected = Move(1, 4, 2, 4, piece="k", captured="Q")
     b.print_move(move)
+    move.old_flags = None
     assert move == expected
 
 
@@ -662,11 +664,13 @@ def test_minmax_2():
     b._sync_board_to_piece_set()
 
     _, move = minmax(b, eval_chess_board, 1)
-    expected = Move(7, 2, 3, 6)
+    expected = Move(7, 2, 3, 6, piece="B", captured="q")
+    move.old_flags = None
     assert move == expected
 
     _, move = minmax(b, eval_chess_board, 2)
-    expected = Move(7, 2, 3, 6)
+    expected = Move(7, 2, 3, 6, piece='B', captured="q")
+    move.old_flags = None
     assert move == expected
 
 
@@ -690,7 +694,8 @@ def test_minmax_3():
 
     _, move = minmax(b, eval_chess_board, 3)
     b.print_move(move)
-    expected = Move(7, 0, 7, 7)
+    expected = Move(7, 0, 7, 7, piece="R")
+    move.old_flags = None
     assert move == expected
 
     # forked!
@@ -711,7 +716,8 @@ def test_minmax_3():
 
     _, move = minmax(b, eval_chess_board, 3)
     b.print_move(move)
-    expected = Move(4, 3, 6, 2)
+    expected = Move(4, 3, 6, 2, piece="n", captured="P")
+    move.old_flags = None
     assert move == expected
 
 def test_play():
@@ -896,17 +902,11 @@ def test_pawn_promotion_moves():
         ". . . . . . . .".split(),
     ))
     b._sync_board_to_piece_set()
-    m = Move(2, 1, 1, 1, piece="P")
-    m2 = Move(2, 1, 1, 1, piece="P")
-    assert m == m2
-    assert {m} == {m2}
-
 
     moves = set(b.moves("white"))
     expected = {
         Move(2, 1, 1, 1, piece="P"),
         Move(1, 4, 0, 4, piece="Q", special="q"),
-        Move(1, 4, 0, 4, piece="N", special="n"),
         Move(1, 4, 0, 4, piece="N", special="n"),
     }
 
@@ -919,5 +919,3 @@ def test_pawn_promotion_moves():
         Move(6, 7, 7, 7, piece="n", special="n"),
     }
     assert moves == expected, "3 moves also available for black"
-
-test_pawn_promotion_moves()

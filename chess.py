@@ -235,6 +235,18 @@ def human_player(board: ChessBoard) -> Move:
         if r < 0 or r > 7:
             raise ValueError("Rank is out of bounds: {}".format(rank))
         return r
+    
+    def choose_queen_or_knight() -> str:
+        """User input prompt.
+        Returns 'q' or 'n' """
+        while True:
+            q_or_n = input("Queen or Knight? (q/n) ")
+            if q_or_n.lower() == "q":
+                return "q"
+            elif q_or_n.lower() == "n":
+                return "n"
+            else:
+                print("Invalid input. Please enter 'q' or 'n'")
 
     possible_moves = board.moves()
 
@@ -274,8 +286,21 @@ def human_player(board: ChessBoard) -> Move:
         elif piece.lower() == "p" and c_from != c_to and captured == ".":
             # pawn moved diagonally without landing on a piece
             special = EN_PASSANT_SPOT
-            
+        # detect pawn promotion
+        elif (piece.lower() == "p" and r_to in [0,7]):
+            q_or_n = choose_queen_or_knight()
+            if board.turn == "white":
+                piece = q_or_n.upper()
+            else:
+                piece = q_or_n.lower()
+            special = q_or_n.lower()
+
         move = Move(r_from, c_from, r_to, c_to, piece, captured, special)
+        print("Selected move:")
+        print(move)
+        print("All possible moves:")
+        for m in possible_moves:
+            print(m)
         if move not in possible_moves:
             print("Illegal move!")
             board.print_move(move)

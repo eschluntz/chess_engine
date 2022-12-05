@@ -98,17 +98,17 @@ Upon further thought, it will probably be easiest to generate possible moves at 
         [x] undo move
         [x] human entry
         [x] tests
-    [ ] promotion
+    [x] promotion
         pawns can go forward straight, or by attacking. each move ending on the back can turn into either a queen or a knight.
         [x] moves
         [x] do move
         [x] undo
-        [ ] tests
-        [ ] interface
+        [x] tests
+        [x] interface
     [ ] repeated move rules? in value function?
-2. look for speedup opportunities, especially in move generation
-    [X] [not actually faster] store store 2 piece sets, one for each side, instead of one and filtering it.
-    [ ] larger index array, to make it easier to do bounds checking.
+2. PERF!!!
+    [ ] don't call _sync_board_to_piece_set every time, or speed it up
+    [ ] rewrite eval_board with numpy
 3. Iterative deepening to keep a constant time, rather than depth level. also to improve move ordering
 4. Transposition Tables - Basically a hashtable for scores for any board position we've seen so far.
   a. Use this with iterative deepening to provide move orderings using depth-1 saves.

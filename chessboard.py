@@ -57,6 +57,8 @@ class Move(object):
 
         # optional and are filled in by the board when doing a move
         self.piece = piece
+        if captured is None:
+            captured = "."
         self.captured = captured
 
     def __repr__(self) -> str:
