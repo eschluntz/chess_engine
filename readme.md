@@ -91,6 +91,7 @@ Upon further thought, it will probably be easiest to generate possible moves at 
 1. Finish all special moves: en passant, promoting pawns, castling
     [x] ensure that move and board datastructures can support them
     [x] castle
+        [ ] don't castle across check
     [x] en passant
         [x] move generation
         [x] do move
@@ -98,6 +99,13 @@ Upon further thought, it will probably be easiest to generate possible moves at 
         [x] human entry
         [x] tests
     [ ] promotion
+        pawns can go forward straight, or by attacking. each move ending on the back can turn into either a queen or a knight.
+        [x] moves
+        [x] do move
+        [x] undo
+        [ ] tests
+        [ ] interface
+    [ ] repeated move rules? in value function?
 2. look for speedup opportunities, especially in move generation
     [X] [not actually faster] store store 2 piece sets, one for each side, instead of one and filtering it.
     [ ] larger index array, to make it easier to do bounds checking.

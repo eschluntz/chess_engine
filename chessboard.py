@@ -139,7 +139,7 @@ class ChessBoard(object):
         knight: n
         rook:   r
         """
-        back_row = [".", ".", ".", ".", "k", ".", ".", "."]
+        back_row = ["r", "n", "b", "q", "k", "b", "n", "r"]
         front_row = ["p"] * 8
 
         self.board[0] = np.array(back_row)
@@ -349,14 +349,21 @@ class ChessBoard(object):
         for piece, r_from, c_from in pieces:
             for r_to, c_to in self.get_dests_for_piece(r_from, c_from):
                 
-                # convert destinations into moves
-                move = Move(r_from, c_from, r_to, c_to, piece=piece)
-                all_moves.append(move)
+                # handle pawn promotions
+                if piece == "P" and r_to == 0:
+                    all_moves.append(Move(r_from, c_from, r_to, c_to, piece="Q", special="q"))
+                    all_moves.append(Move(r_from, c_from, r_to, c_to, piece="N", special="n"))
+                elif piece == "p" and r_to == 7:
+                    all_moves.append(Move(r_from, c_from, r_to, c_to, piece="q", special="q"))
+                    all_moves.append(Move(r_from, c_from, r_to, c_to, piece="n", special="n"))
+                else:
+                    # convert normal destinations into moves
+                    move = Move(r_from, c_from, r_to, c_to, piece=piece)
+                    all_moves.append(move)
 
         # add special moves
         all_moves.extend(self._get_castle_moves(turn))
         all_moves.extend(self._get_en_passant_moves(turn))
-        # all_moves.extend(self._get_promotion_moves(turn))
 
         return all_moves
     
@@ -424,7 +431,8 @@ class ChessBoard(object):
                 self.board[move.r_to + 1, move.c_to] = "."
             else:
                 self.board[move.r_to - 1, move.c_to] = "."
-        elif move.special in ["q", "n", "b", "r"]:  # promotion
+        elif move.special in ["q", "n"]:  # promotion
+            # TODO: clean up this by always filling in piece originally?
             if piece.isupper():
                 piece = move.special.upper()
             else:
@@ -470,7 +478,7 @@ class ChessBoard(object):
                 self.board[move.r_to + 1, move.c_to] = "p"
             else:
                 self.board[move.r_to - 1, move.c_to] = "P"
-        elif move.special in ["q", "n", "b", "r"]:  # promotion
+        elif move.special in ["q", "n"]:  # promotion
             # demote back to a pawn :p
             # NOTE that processing a promotion forward saves move.piece as the new piece
             if piece.isupper():
