@@ -105,7 +105,6 @@ Upon further thought, it will probably be easiest to generate possible moves at 
         [x] undo
         [x] tests
         [x] interface
-    [ ] repeated move rules? in value function?
 2. PERF!!!
     [ ] don't call _sync_board_to_piece_set every time, or speed it up
     [ ] rewrite eval_board with numpy
