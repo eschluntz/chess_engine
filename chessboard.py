@@ -53,7 +53,7 @@ class Move(object):
         self.r_to = r_to
         self.c_to = c_to
         self.special = special
-        self.old_flags = {}  # filled in by do_move, for undoing later
+        self.old_flags = None  # filled in by do_move, for undoing later
 
         # optional and are filled in by the board when doing a move
         self.piece = piece
@@ -78,9 +78,10 @@ class Move(object):
         )
 
     def __eq__(self, other) -> bool:
-        """Note: only compares to and from positions, not piece or capture"""
-
-        return (self.r_from, self.c_from, self.r_to, self.c_to) == (other.r_from, other.c_from, other.r_to, other.c_to)
+        return self.__dict__ == other.__dict__
+    
+    def __hash__(self) -> int:
+        return hash((self.r_from, self.c_from, self.r_to, self.c_to, self.special, self.old_flags, self.piece, self.captured))
 
 
 class ChessBoard(object):
@@ -95,13 +96,12 @@ class ChessBoard(object):
         self.piece_set: Set[Tuple[str, int, int]] = set()  # caches pieces for speedup. (piece, row, column?)
 
         # some special moves require past info of board state
-        self.flags = dict(
-            w_castle_left=True,
-            w_castle_right=True,
-            b_castle_left=True,
-            b_castle_right=True,
-            en_passant_spot=None # destination of en passant in the most recent move. # TODO: do i need this in the board?
-        )
+        self.w_castle_left_flag = True
+        self.w_castle_right_flag = True
+        self.b_castle_left_flag = True
+        self.b_castle_right_flag = True
+        self.en_passant_spot = None # destination of en passant in the most recent move.
+        
 
         self.past_moves: Sequence[Tuple[Move, str]] = []
         self.turn = "white"
@@ -212,8 +212,10 @@ class ChessBoard(object):
 
     def _get_pawn_dests(self, r: int, c: int, player: str) -> Sequence[Tuple[int, int]]:
         """pawns are actually the most complex pieces on the board! Their moves:
-        1. are asymmetric, 2. depend on their position, 3. depends on opponents 4. moves do not equal captures
-        TODO: handle promoting
+        1. are asymmetric, 2. depend on their position, 3. depends on opponents 
+        4. moves do not equal captures
+        NOTE: promotions are handled later, converting destinations that land on
+        the back row into multiple possible Moves, turning into a Queen or Knight.
         NOTE: en passant handled elsewhere"""
 
         pawn_jumps = []
@@ -257,17 +259,17 @@ class ChessBoard(object):
         """
         moves = []
         if player == "white":
-            if self.flags["w_castle_left"] \
+            if self.w_castle_left_flag \
                 and np.all(self.board[7,0:5] == list("R...K")):
                 moves.append(Move(7, 4, 7, 2, "K", special=W_CASTLE_LEFT))
-            if self.flags["w_castle_right"] \
+            if self.w_castle_right_flag \
                 and np.all(self.board[7,4:8] == list("K..R")):
                 moves.append(Move(7, 4, 7, 6, "K", special=W_CASTLE_RIGHT))
         else:
-            if self.flags["b_castle_left"] \
+            if self.b_castle_left_flag \
                 and np.all(self.board[0,0:5] == list("r...k")):
                 moves.append(Move(0, 4, 0, 2, "k", special=B_CASTLE_LEFT))
-            if self.flags["b_castle_right"] \
+            if self.b_castle_right_flag \
                 and np.all(self.board[0,4:8] == list("k..r")):
                 moves.append(Move(0, 4, 0, 6, "k", special=B_CASTLE_RIGHT))
         return moves
@@ -275,8 +277,8 @@ class ChessBoard(object):
     def _get_en_passant_moves(self, player : str) -> Sequence[Move]:
         """Generates special en passant moves"""
         moves = []
-        if self.flags[EN_PASSANT_SPOT] is not None:
-            ep_r, ep_c = self.flags[EN_PASSANT_SPOT]
+        if self.en_passant_spot is not None:
+            ep_r, ep_c = self.en_passant_spot
             if player == "white":
                 if inbound(ep_r, ep_c + 1) and self.board[ep_r, ep_c + 1] == "P":  # white has pawn to right
                     # TODO: bounds checking?
@@ -373,28 +375,28 @@ class ChessBoard(object):
         if it moves back. We track these with flags"""
         piece = move.piece
         if piece == "k":
-            self.flags[B_CASTLE_LEFT], self.flags[B_CASTLE_RIGHT] = False, False
+            self.b_castle_left_flag, self.b_castle_right_flag = False, False
         elif piece == "K":
-            self.flags[W_CASTLE_LEFT], self.flags[W_CASTLE_RIGHT] = False, False
+            self.w_castle_left_flag, self.w_castle_right_flag = False, False
         elif piece == "r":
             if move.c_from == 0 and move.r_from == 0:  # move from upper left
-                self.flags[B_CASTLE_LEFT] = False
+                self.b_castle_left_flag = False
             elif move.c_from == 7 and move.r_from == 0:  # move from upper right
-                self.flags[B_CASTLE_RIGHT] = False
+                self.b_castle_right_flag = False
         elif piece == "R":
             if move.c_from == 0 and move.r_from == 7:  # move from bottom left
-                self.flags[W_CASTLE_LEFT] = False
+                self.w_castle_left_flag = False
             elif move.c_from == 7 and move.r_from == 7:  # move from bottom right
-                self.flags[W_CASTLE_RIGHT] = False
+                self.w_castle_right_flag = False
     
     def _update_en_passant_flags(self, move: Move):
         """En passant is only available the turn immediately
         after a double jump. We track availability with a flag"""
         piece = move.piece
         if piece.lower() == "p" and abs(move.r_from - move.r_to) == 2:  # detect a double jump to enable en passant
-            self.flags[EN_PASSANT_SPOT] = (move.r_to, move.c_to)
+            self.en_passant_spot = (move.r_to, move.c_to)
         else:
-            self.flags[EN_PASSANT_SPOT] = None  # clear
+            self.en_passant_spot = None  # clear
 
     def do_move(self, move: Move):
         """Do a move on the chessboard"""
@@ -407,7 +409,13 @@ class ChessBoard(object):
         self.board[move.r_to, move.c_to] = piece
 
         # save current state of flags for undoing later
-        move.old_flags = deepcopy(self.flags)
+        move.old_flags = (
+            self.w_castle_left_flag, 
+            self.w_castle_right_flag,
+            self.b_castle_left_flag,
+            self.b_castle_right_flag,
+            self.en_passant_spot,
+        )
 
         # record state that effects special moves
         self._update_en_passant_flags(move)
@@ -458,7 +466,13 @@ class ChessBoard(object):
         self.board[move.r_to, move.c_to] = captured
 
         # undo recorded info needed for special moves.
-        self.flags = deepcopy(move.old_flags)
+        (
+            self.w_castle_left_flag, 
+            self.w_castle_right_flag,
+            self.b_castle_left_flag,
+            self.b_castle_right_flag,
+            self.en_passant_spot
+        ) = move.old_flags
 
         # special moves
         if move.special == W_CASTLE_LEFT:

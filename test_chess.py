@@ -543,10 +543,10 @@ def test_castling_moves():
     assert(moves == expected)  # NOTE: this could be fragile to order changes
     
     # set has_moved flags
-    b.flags[W_CASTLE_LEFT] = False
-    b.flags[W_CASTLE_RIGHT] = False
-    b.flags[B_CASTLE_LEFT] = False
-    b.flags[B_CASTLE_RIGHT] = False
+    b.w_castle_left_flag = False
+    b.w_castle_right_flag = False
+    b.b_castle_left_flag = False
+    b.b_castle_right_flag = False
     
     assert(len(b._get_castle_moves("white")) == 0)
     assert(len(b._get_castle_moves("black")) == 0)
@@ -588,16 +588,16 @@ def test_en_passant_moves():
     moves = b._get_en_passant_moves("white")
     assert len(moves) == 0, "no en passant without flags set"
     
-    b.flags[EN_PASSANT_SPOT] = (3, 0)
+    b.en_passant_spot = (3, 0)
     moves = b._get_en_passant_moves("white")
     assert len(moves) == 0, "no available pieces"
     
-    b.flags[EN_PASSANT_SPOT] = (4, 2)
+    b.en_passant_spot = (4, 2)
     moves = b._get_en_passant_moves("black")
     expected = [Move(4, 3, 5, 2, "p", "P", "e")]
     assert moves == expected, "ep available to left"
     
-    b.flags[EN_PASSANT_SPOT] = (4, 4)
+    b.en_passant_spot = (4, 4)
     moves = b._get_en_passant_moves("black")
     expected = [  # NOTE: fragile to move order. fix hashability so i can use set
         Move(4, 5, 5, 4, "p", "P", "e"),
@@ -723,18 +723,18 @@ def test_en_passant_flags():
     b = ChessBoard()
     m = Move(r_from=1, c_from=2, r_to=3, c_to=3)  # black pawn forward 2
     b.do_move(m)
-    assert b.flags["en_passant_spot"] == (3,3), "should be available"
+    assert b.en_passant_spot == (3,3), "should be available"
 
     m = Move(r_from=1, c_from=3, r_to=2, c_to=3)  # black pawn forward 1
     b.do_move(m)
-    assert b.flags["en_passant_spot"] == None, "should not be available"
+    assert b.en_passant_spot == None, "should not be available"
 
     m = Move(r_from=6, c_from=4, r_to=4, c_to=4)  # white pawn forward 2
     b.do_move(m)
-    assert b.flags["en_passant_spot"] == (4,4), "should be available"
+    assert b.en_passant_spot == (4,4), "should be available"
 
     b.undo_move()
-    assert b.flags["en_passant_spot"] == None, "should not available after undo"
+    assert b.en_passant_spot == None, "should not available after undo"
 
 def test_castle_flags():
     b = ChessBoard()
@@ -753,33 +753,33 @@ def test_castle_flags():
     m = Move(r_from=6, c_from=4, r_to=4, c_to=4)  # just a pawn move
     b.do_move(m)
     assert all((
-        b.flags["b_castle_right"],
-        b.flags["b_castle_left"],
-        b.flags["w_castle_right"],
-        b.flags["w_castle_left"])), "all should start as true"
+        b.b_castle_right_flag,
+        b.b_castle_left_flag,
+        b.w_castle_right_flag,
+        b.w_castle_left_flag)), "all should start as true"
 
     m = Move(r_from=0, c_from=0, r_to=0, c_to=1)  # move left black rook
     b.do_move(m)
     assert all((
-        b.flags["b_castle_right"],
-        not b.flags["b_castle_left"],
-        b.flags["w_castle_right"],
-        b.flags["w_castle_left"])), "black can't castle left"
+        b.b_castle_right_flag,
+        not b.b_castle_left_flag,
+        b.w_castle_right_flag,
+        b.w_castle_left_flag)), "black can't castle left"
 
     m = Move(r_from=7, c_from=4, r_to=7, c_to=3)  # move white king
     b.do_move(m)
     assert all((
-        b.flags["b_castle_right"],
-        not b.flags["b_castle_left"],
-        not b.flags["w_castle_right"],
-        not b.flags["w_castle_left"])), "white can't castle at all now"
+        b.b_castle_right_flag,
+        not b.b_castle_left_flag,
+        not b.w_castle_right_flag,
+        not b.w_castle_left_flag)), "white can't castle at all now"
 
     b.undo_move()
     assert all((
-        b.flags["b_castle_right"],
-        not b.flags["b_castle_left"],
-        b.flags["w_castle_right"],
-        b.flags["w_castle_left"])), "back to normal after undo move"
+        b.b_castle_right_flag,
+        not b.b_castle_left_flag,
+        b.w_castle_right_flag,
+        b.w_castle_left_flag)), "back to normal after undo move"
 
 
 def test_do_and_undo_castle():
@@ -845,41 +845,79 @@ def test_do_and_undo_en_passant():
     b.turn = "black"
     
     # black takes with d4
-    b.flags[EN_PASSANT_SPOT] = (4, 2)
+    b.en_passant_spot = (4, 2)
     m = Move(4, 3, 5, 2, special="e")
     b.do_move(m)
     assert_row(b, 4, "....Pp..")
     assert_row(b, 5, "..p.....")
-    assert b.flags[EN_PASSANT_SPOT] is None, "flags cleared"
+    assert b.en_passant_spot is None, "flags cleared"
     b.undo_move()
     assert_row(b, 4, "..PpPp..")
     assert_row(b, 5, "........")
-    assert b.flags[EN_PASSANT_SPOT] == (4, 2), "flags reset"
+    assert b.en_passant_spot == (4, 2), "flags reset"
     
     # black takes right with d4
     b.turn = "black"
-    b.flags[EN_PASSANT_SPOT] = (4, 4)
+    b.en_passant_spot = (4, 4)
     m = Move(4, 3, 5, 4, special="e")
     b.do_move(m)
     assert_row(b, 4, "..P..p..")
     assert_row(b, 5, "....p...")
-    assert b.flags[EN_PASSANT_SPOT] is None, "flags cleared"
+    assert b.en_passant_spot is None, "flags cleared"
     b.undo_move()
     assert_row(b, 4, "..PpPp..")
     assert_row(b, 5, "........")
-    assert b.flags[EN_PASSANT_SPOT] == (4, 4), "flags reset"
+    assert b.en_passant_spot == (4, 4), "flags reset"
 
     # white takes with h5
     b.turn = "white"
-    b.flags[EN_PASSANT_SPOT] = (3, 6)
+    b.en_passant_spot = (3, 6)
     m = Move(3, 7, 2, 6, special="e")
     b.do_move(m)
     assert_row(b, 2, "......P.")
     assert_row(b, 3, "pp......")
-    assert b.flags[EN_PASSANT_SPOT] is None, "flags cleared"
+    assert b.en_passant_spot is None, "flags cleared"
     b.undo_move()
     assert_row(b, 4, "..PpPp..")
     assert_row(b, 5, "........")
-    assert b.flags[EN_PASSANT_SPOT] == (3, 6), "flags reset"
+    assert b.en_passant_spot == (3, 6), "flags reset"
 
-test_do_and_undo_en_passant()
+
+def test_pawn_promotion_moves():
+    b = ChessBoard()
+    b.board = np.array((
+        ". . . . . . . .".split(),
+        ". . . . P . . .".split(),
+        ". P . . . . . .".split(),
+        ". . . . . . . .".split(),
+        ". . . . . . . .".split(),
+        ". . . . . . p .".split(),
+        ". . . . . . . p".split(),
+        ". . . . . . . .".split(),
+    ))
+    b._sync_board_to_piece_set()
+    m = Move(2, 1, 1, 1, piece="P")
+    m2 = Move(2, 1, 1, 1, piece="P")
+    assert m == m2
+    assert {m} == {m2}
+
+
+    moves = set(b.moves("white"))
+    expected = {
+        Move(2, 1, 1, 1, piece="P"),
+        Move(1, 4, 0, 4, piece="Q", special="q"),
+        Move(1, 4, 0, 4, piece="N", special="n"),
+        Move(1, 4, 0, 4, piece="N", special="n"),
+    }
+
+    assert moves == expected, "3 available moves for white"
+    
+    moves = set(b.moves("black"))
+    expected = {
+        Move(5, 6, 6, 6, piece="p"),
+        Move(6, 7, 7, 7, piece="q", special="q"),
+        Move(6, 7, 7, 7, piece="n", special="n"),
+    }
+    assert moves == expected, "3 moves also available for black"
+
+test_pawn_promotion_moves()
