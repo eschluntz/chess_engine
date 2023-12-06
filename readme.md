@@ -2,12 +2,58 @@
 
 [![codecov](https://codecov.io/gh/eschluntz/games/branch/master/graph/badge.svg)](https://codecov.io/gh/eschluntz/games)
 
-# Games!
+![image](https://github.com/eschluntz/chess_engine/assets/1383982/2ad3d29e-f857-477c-b23c-3bcc5136f251)
 
-A repo of simple AIs to play various games, and a testing ground for various testing, CI, and tooling that I'm interested in trying.
+
+# Chess Engine
+
+### Board Representation
+
+I want to stick as close as I can to tic-tac-toe: a 2D numpy grid. I've seen some representations online use different letters, and then capital / lowercase to denote team.
+
+It looks like there are also representations that that are "piece centric" rather than "square centric". I'm going to stick with board centric for now becuase it's more intuitive to me, but I can see that a piece centric model might be easier to iterate over.
+
+It also looks like for high perforamnce there are things called "bitfields"
+
+Beyond storing the data, the board object will need to:
+
+1. iterate over possible moves
+  a. jumping pieces
+  b. sliding pieces
+  c. special moves like castling, en passant, and promoting pawns
+2. do a move
+3. undo a move, and thus remember past board states
+
+I will use (0,0) as the top left corner of the board, even chess indexes "1" as the bottom of the board. I think this will be cleaner for internal representation, and I can create an interface for UI to transform "rank and file" to "row and column".
+
+### Move Representation
+
+I'll store moves as ((from_r, from_c), (to_r, to_c)).
+For storing move history, I'll also need to store any captured pice, so that moves can be undone.
+history = [(move, captured_piece), ...]
+
+### Move Generation
+
+1. search through the board to each of my pieces
+2. iterate through its valid moves
+3. order the moves to support alpha-beta pruning
+
+### Search Algorithm - Min-Max, Alpha-Beta pruning, Move ordering
+
+Ideally I'll be able to use the same search function for both tic tac toe, chess, and future adversarial games!
+
+1. Min-Max: the bread and butter of adversarial games. Assume that I'll do my best possible move and the opponent will do their best possible mvoe.
+2. Alpha-Beta pruning: Because of how min-max works, we can establish upper and lower bounds of our other options, and quit exploring a branch of the tree early if we know that it won't be chosen. It's pretty incredible how much of a speedup alpha-beta gave me!
+3. move ordering: exploring moves from best to worst makes alpha beta pruning WAY more effective. For chess I should explore using extra calls to the evaluation function to sort the moves, and then go down them. (or maybe even some sort of shallower tree search first, to order the options.)
+
+![times](https://github.com/eschluntz/games/blob/master/time_graph.png?raw=true)
+
+### Board Evaluation Function
+
+This is where the biggest heuristics come into play. For now I'm using a piece-value table that records how valuable it is to have a piece at any given place on the board. In the future this should be learned!
+
 
 # Tic-tac-toe
-
 
 Proving problem before tackling chess, with very similar requirements:
 
@@ -28,86 +74,9 @@ The API for doing and searching through moves is interesting - originally I plan
 
 Instead, I made `do_move()` modify the board object in place, and added an `undo_move()` function which pops from a stack of past moves to revert the board. This allows a single board object to be used across the entire search tree pushing and popping moves, without any copying of data. This is a pattern I had seen in online chess engines
 
-### Search Algorithm - Min-Max, Alpha-Beta pruning, Move ordering
-
-Ideally I'll be able to use the same search function for both tic tac toe, chess, and future adversarial games!
-
-1. Min-Max: the bread and butter of adversarial games. Assume that I'll do my best possible move and the opponent will do their best possible mvoe.
-2. Alpha-Beta pruning: Because of how min-max works, we can establish upper and lower bounds of our other options, and quit exploring a branch of the tree early if we know that it won't be chosen. It's pretty incredible how much of a speedup alpha-beta gave me!
-3. move ordering: exploring moves from best to worst makes alpha beta pruning WAY more effective. For chess I should explore using extra calls to the evaluation function to sort the moves, and then go down them. (or maybe even some sort of shallower tree search first, to order the options.)
-
-![times](https://github.com/eschluntz/games/blob/master/time_graph.png?raw=true)
-
-### Board Evaluation Function
-
-For tic tac toe, a board evaluation function is kind of silly - it's easy enough to just search all the way to the leaf nodes of the tree. Nevertheless, to keep my API the same between chess and tic tac toe, I use an evaluation function that just returns `-1000, 0, or 1000` depending on whether the game is won, lost, or neither.
-
-There was some cool Numpy vectorization to make the evaluation function really fast!
-
-
-# Chess
-
-### Board Representation
-
-I want to stick as close as I can to tic-tac-toe: a 2D numpy grid. I've seen some representations online use different letters, and then capital / lowercase to denote team.
-
-It looks like there are also representations that that are "piece centric" rather than "square centric". I'm going to stick with board centric for now becuase it's more intuitive to me, but I can see that a piece centric model might be easier to iterate over.
-
-It also looks like for high perforamnce there are things called "bitfields"
-
-Beyond storing the data, the board object will need to:
-
-1. iterate over possible moves
-  a. jumping pieces
-  b. sliding pieces
-  c. TODO: special moves like castling, en passant, and promoting pawns
-     NOTE: I just realized that castling and en passant require more information than the current state of the board!
-2. do a move
-3. undo a move, and thus remember past board states
-
-I will use (0,0) as the top left corner of the board, even chess indexes "1" as the bottom of the board. I think this will be cleaner for internal representation, and I can create an interface for UI to transform "rank and file" to "row and column".
-
-### Move Representation
-
-I'll store moves as ((from_r, from_c), (to_r, to_c)).
-For storing move history, I'll also need to store any captured pice, so that moves can be undone.
-history = [(move, captured_piece), ...]
-
-At some point I'll probably need to be able to export or import to a common chess notation like PGN or Algebraic Notation.
-
-### Move Generation
-
-The best way I can think to do this is:
-
-1. search through the board to each of my pieces
-2. ~~iterate through it's possible moves ~~
-3. ~~if that move is legal (i.e. on board, doesn't land on our own piece), add it to my move list~~
-4. order the moves in some better way?
-
-Upon further thought, it will probably be easiest to generate possible moves at the same time as testing legality - especially for "sliding" pieces, that must stop at the first thing they hit.
 
 ### Future Improvements
 
-1. Finish all special moves: en passant, promoting pawns, castling
-    [x] ensure that move and board datastructures can support them
-    [x] castle
-        [ ] don't castle across check
-    [x] en passant
-        [x] move generation
-        [x] do move
-        [x] undo move
-        [x] human entry
-        [x] tests
-    [x] promotion
-        pawns can go forward straight, or by attacking. each move ending on the back can turn into either a queen or a knight.
-        [x] moves
-        [x] do move
-        [x] undo
-        [x] tests
-        [x] interface
-2. PERF!!!
-    [ ] don't call _sync_board_to_piece_set every time, or speed it up
-    [ ] rewrite eval_board with numpy
-3. Iterative deepening to keep a constant time, rather than depth level. also to improve move ordering
-4. Transposition Tables - Basically a hashtable for scores for any board position we've seen so far.
-  a. Use this with iterative deepening to provide move orderings using depth-1 saves.
+1. Finish all special moves: [x]en passant, [x]promoting pawns, [x]castling, [ ] prevent castling across check
+2. Iterative deepening to keep a constant time, rather than depth level. also to improve move ordering
+3. Transposition Tables - Basically a hashtable for scores for any board position we've seen so far. Use this with iterative deepening to provide move orderings using depth-1 saves.
