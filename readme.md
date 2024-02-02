@@ -1,11 +1,13 @@
 [![Build Status](https://github.com/eschluntz/chess_engine/actions/workflows/run_tests.yml/badge.svg)](https://github.com/eschluntz/chess_engine/actions)
 
-[![codecov](https://codecov.io/gh/eschluntz/games/branch/master/graph/badge.svg)](https://codecov.io/gh/eschluntz/games)
+[![codecov](https://codecov.io/gh/eschluntz/chess_engine/branch/master/graph/badge.svg)](https://codecov.io/gh/eschluntz/chess_engine)
 
 ![image](https://github.com/eschluntz/chess_engine/assets/1383982/2ad3d29e-f857-477c-b23c-3bcc5136f251)
 
 
 # Chess Engine
+
+This is a custom chess engine, written from scratch in python, as well as a simple classical AI based on minimax with alpha-beta pruning.
 
 ### Board Representation
 
