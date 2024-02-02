@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/eschluntz/games.svg?branch=master)](https://travis-ci.com/eschluntz/games)
+[![Build Status](https://github.com/eschluntz/chess_engine/actions/workflows/run_tests.yml/badge.svg)](https://github.com/eschluntz/chess_engine/actions)
 
 [![codecov](https://codecov.io/gh/eschluntz/games/branch/master/graph/badge.svg)](https://codecov.io/gh/eschluntz/games)
 

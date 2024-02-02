@@ -2,5 +2,6 @@
 *.pyc
 *.prof
 .coverage
+coverage.xml
 env/
 .python-version
